@@ -7,7 +7,7 @@ http_client_test.cpp
 #include <string>
 #include <memory>
 
-#include "../httpclient1/AsyncHttpClient.h"
+#include "AsyncHttpClient.h"
 
 using namespace std;
 

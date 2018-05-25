@@ -59,6 +59,10 @@ void AsyncHttpClient::ConnectCallback(asio::error_code const & err)
 		request_.append("GET ").append(path_).append(" HTTP/1.1\r\n");
 		request_.append("Host: ").append(host_).append("\r\n");
 		request_.append("Accept: */*\r\n");
+		if(! cookie_.empty())
+		{
+			request_.append("Cookie: ").append(cookie_).append("\r\n");
+		}
 		request_.append("Connection: Close\r\n\r\n");
 
 		asio::async_write(socket_, asio::buffer(&request_[0], request_.size()),
@@ -103,5 +107,90 @@ void AsyncHttpClient::ServerResponseCallback(asio::error_code const & err, std::
 		err_ = err.message();
 	}
 
-	finish_callback_(shared_from_this());
+	// parse the whole response, check the status code. if the code is 302, handle the redirection.
+	// check if the response header is complete.
+	const size_t header_end = response_.find("\r\n\r\n"); // attention, not find_first_of
+	if(header_end == string::npos) // no \r\n\r\n, the header is not complete
+	{
+		err_ = "header is not complete";
+		finish_callback_(shared_from_this());
+		return;
+	}
+
+	// parse the response header line by line
+	const string response_header = response_.substr(0, header_end);
+	//std::cout<<"response header:\n"<<response_header<<"\n";
+	//std::cout<<"=======================================\n";
+	std::vector<std::string> vec_headers;
+	Split(response_header, "\r\n", vec_headers);
+	// the first line is the status code, 200 is ok, 302 needs redirection
+	const std::string& status_line = vec_headers[0];
+	if(! ParseStatusLine(status_line))
+	{
+		finish_callback_(shared_from_this());
+		return;
+	}
+	// parse other header lines
+	for(size_t index = 1; index < vec_headers.size(); ++index)
+	{
+		const string& line = vec_headers[index];
+		size_t pos = line.find(": ");
+		string name = line.substr(0, pos);
+		string value = line.substr(pos + 2, string::npos);
+		//std::cout<<"get line: ("<<name<<"="<<value<<")\n";
+		if(name == "Set-Cookie")
+		{
+			cookie_ = value;
+		}
+		else if(name == "Location")
+		{
+			location_ = value;
+			url_ = value;
+		}
+	}
+
+	if(status_code_ == 302 && ! location_.empty() && redirection_times_ < 2) // now do redirection
+	{
+		++ redirection_times_;
+		std::cout<<status_line<<"\n";
+		std::cout<<"302, now start redirection to "<<location_<<"\n";
+		Start(finish_callback_);
+	}
+	else
+	{
+		finish_callback_(shared_from_this());
+	}
+}
+
+void AsyncHttpClient::Split(const std::string& str, const std::string& delimiters,
+        std::vector<std::string>& tokens)
+{
+    // Skip delimiters at beginning.
+    string::size_type lastPos = str.find_first_not_of(delimiters, 0);
+    // Find first "non-delimiter".
+    string::size_type pos = str.find_first_of(delimiters, lastPos);
+
+    while (string::npos != pos || string::npos != lastPos)
+    {
+        // Found a token, add it to the vector.
+        tokens.push_back(str.substr(lastPos, pos - lastPos));
+        // Skip delimiters.  Note the "not_of"
+        lastPos = str.find_first_not_of(delimiters, pos);
+        // Find next "non-delimiter"
+        pos = str.find_first_of(delimiters, lastPos);
+    }
+}
+
+bool AsyncHttpClient::ParseStatusLine(std::string const & status_line)
+{
+	std::regex re("HTTP/1\\.\\d (\\d+) [\\w ]+");
+	std::smatch sm;
+	if(! std::regex_match(status_line, sm, re))
+	{
+		err_ = "invalid status line";
+		return false;
+	}
+
+	status_code_ = std::stoi(sm[1].str());
+	return true;
 }

@@ -1,2 +1,2 @@
 # network
-simple network libs, mainly based on asio, only asynchronous
+simple network libs, mainly based on asio, only asynchronously

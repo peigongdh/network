@@ -34,7 +34,7 @@ public:
 private:
 	void HandleLocalConnect(const asio::error_code& err, std::size_t bytes_transferred) // recv 05 01 00 from client
 	{
-		if(! err)
+		if(err)
 		{
 			cout<<"recv 05 01 00 err: "<<err.message()<<"\n";
 			return;
@@ -63,7 +63,7 @@ private:
 
 	void HandleConnectWrite(const asio::error_code& err, std::size_t bytes_transferred) // after send 05 00 to client
 	{
-		if(! err)
+		if(err)
 		{
 			cout<<"send 05 00 to client err: "<<err.message()<<"\n";
 			return;
@@ -76,7 +76,7 @@ private:
 
 	void HandleConnectCmd(const asio::error_code& err, std::size_t bytes_transferred)
 	{
-		if(! err)
+		if(err)
 		{
 			cout<<"recv cmd err: "<<err.message()<<"\n";
 			return;

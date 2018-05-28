@@ -23,7 +23,7 @@ public:
 public:
 	void Start()
 	{
-		asio::async_read(local_socket_, asio::buffer(local_buffer_), std::bind(&Sock5Session::HandleLocalConnect,
+		local_socket_.async_receive(asio::buffer(local_buffer_), std::bind(&Sock5Session::HandleLocalConnect,
 				shared_from_this(), _1, _2));
 	}
 
@@ -70,7 +70,7 @@ private:
 		}
 
 		//read command from client, only connect here. should be like 05 01 00 01/03 ...
-		asio::async_read(local_socket_, asio::buffer(local_buffer_), std::bind(&Sock5Session::HandleConnectCmd,
+		local_socket_.async_receive(asio::buffer(local_buffer_), std::bind(&Sock5Session::HandleConnectCmd,
 				shared_from_this(), _1, _2));
 	}
 
@@ -95,41 +95,45 @@ private:
 			return;
 		}
 
-		if(local_buffer_[1] != 0x01 || local_buffer_[1] != 0x03)
+		if(local_buffer_[1] != 0x01)// && local_buffer_[1] != 0x03)
 		{
-			cout<<"unsupported cmd : "<<local_buffer_[1]<<"\n";
+			cout<<"unsupported cmd : "<<int(local_buffer_[1])<<"\n";
 			return;
 		}
 
 		if(local_buffer_[1] == 0x01) // connect as ipv4 address
 		{
-			// 05 01 00 01 ip[4] port[2]
-			if(bytes_transferred != 10)
+			if(local_buffer_[3] == 0x01) // 05 01 00 01 ip[4] port[2]
 			{
-				cout<<"connect with ip length error, not 10, but "<<bytes_transferred<<"\n";
-				return;
-			}
+				if(bytes_transferred != 10)
+				{
+					cout<<"connect with ip length error, not 10, but "<<bytes_transferred<<"\n";
+					return;
+				}
 
-			uint32_t int_ip = *(uint32_t*)(&local_buffer_[4]);
-			dest_host_ = asio::ip::address_v4(ntohl(int_ip)).to_string();
-			uint16_t int_port = *(uint16_t*)(&local_buffer_[8]);
-			dest_port_ = std::to_string(ntohs(int_port));
-		}
-		else // local_buffer_[1] == 0x03, connect as domain name
-		{
-			// 05 01 00 03 host_len host[host_len] port[2]
-			uint8_t host_len = local_buffer_[4];
-			if(bytes_transferred != 7 + host_len)
+				uint32_t int_ip = *(uint32_t*)(&local_buffer_[4]);
+				dest_host_ = asio::ip::address_v4(ntohl(int_ip)).to_string();
+				uint16_t int_port = *(uint16_t*)(&local_buffer_[8]);
+				dest_port_ = std::to_string(ntohs(int_port));
+				cout<<"connect with ip[4]="<<dest_host_<<", port="<<dest_port_<<"\n";
+			}
+			else if(local_buffer_[3] == 0x03) // 05 01 00 03 host_len host[host_len] port[2]
 			{
-				cout<<"connect with hostname length error, not "<<7+host_len<<", but "<<bytes_transferred<<"\n";
-				return;
-			}
+				uint8_t host_len = local_buffer_[4];
+				if(bytes_transferred != 7 + host_len)
+				{
+					cout<<"connect with hostname length error, not "<<7+host_len<<", but "<<bytes_transferred<<"\n";
+					return;
+				}
 
-			dest_host_ = std::string(local_buffer_[5], host_len);
-			uint16_t int_port = *(uint16_t*)(&local_buffer_[bytes_transferred-2]);
-			dest_port_ = std::to_string(ntohs(int_port));
+				dest_host_ = std::string(&local_buffer_[5], host_len);
+				uint16_t int_port = *(uint16_t*)(&local_buffer_[bytes_transferred-2]);
+				dest_port_ = std::to_string(ntohs(int_port));
+
+				cout<<"connect with host="<<dest_host_<<", port="<<dest_port_<<"\n";
+			}
 		}
-		cout<<"recv connect cmd, host="<<dest_host_<<", port="<<dest_port_<<"\n";
+		//cout<<"recv connect cmd, host="<<dest_host_<<", port="<<dest_port_<<"\n";
 	}
 private:
 	asio::io_context& io_context_;

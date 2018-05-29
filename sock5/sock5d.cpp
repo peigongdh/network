@@ -153,9 +153,20 @@ private:
 
 						cout<<"connected to host="<<dest_host_<<", port="<<dest_port_<<", now read data\n";
 
-						// connected to dest server, now receive data and transfer
-						ReadFromLocal();
-						ReadFromDest();
+						//sock5 handshake finished, send response to client
+						char resp[] = {0x05, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+						memcpy(local_buffer_, resp, sizeof(resp));
+						asio::async_write(local_socket_, asio::buffer(local_buffer_, sizeof(resp)), [this, self](const asio::error_code& err, size_t bytes_transferred) {
+							if(err)
+							{
+								cout<<"handshake resp error: "<<err.message()<<"\n";
+								return;
+							}
+
+							// connected to dest server, now receive data and transfer
+							ReadFromLocal();
+							ReadFromDest();
+						});
 					});
 				});
 		}
@@ -168,7 +179,7 @@ private:
 		local_socket_.async_read_some(asio::buffer(local_buffer_), [self, this](const asio::error_code& err, size_t bytes_transferred) {
 				if(! err)
 				{
-					cout<<"recved data, length: "<<bytes_transferred<<"\n";
+					cout<<"recved from local, length: "<<bytes_transferred<<"\n";
 					asio::async_write(dest_socket_, asio::buffer(local_buffer_, bytes_transferred), [self, this](const asio::error_code& err, std::size_t bytes_transferred) {
 						if(! err)
 						{
@@ -197,6 +208,7 @@ private:
 		dest_socket_.async_read_some(asio::buffer(dest_buffer_), [self, this](const asio::error_code& err, size_t bytes_transferred) {
 				if(! err)
 				{
+					cout<<"recved from dest, length: "<<bytes_transferred<<"\n";
 					asio::async_write(local_socket_, asio::buffer(dest_buffer_, bytes_transferred), [self, this](const asio::error_code& err, std::size_t bytes_transferred) {
 						if(! err)
 						{

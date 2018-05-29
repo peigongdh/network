@@ -41,7 +41,7 @@ private:
 			return;
 		}
 
-		cout<<"recv 05 01 00, bytes_transferred="<<bytes_transferred<<"\n";
+		//cout<<"recv 05 01 00, bytes_transferred="<<bytes_transferred<<"\n";
 
 		if(bytes_transferred < 3)
 		{
@@ -55,7 +55,7 @@ private:
 			return;
 		}
 
-		cout<<"recv 05 01 00 content ok\n";
+		//cout<<"recv 05 01 00 content ok\n";
 		// send 0x05 00 to client
 		local_buffer_[1] = 0x00;
 		asio::async_write(local_socket_, asio::buffer(&local_buffer_[0], 2), std::bind(&Sock5Session::HandleConnectWrite,
@@ -96,7 +96,7 @@ private:
 			return;
 		}
 
-		if(local_buffer_[1] != 0x01)// && local_buffer_[1] != 0x03)
+		if(local_buffer_[1] != 0x01)// now only 0x01 is supported
 		{
 			cout<<"unsupported cmd : "<<int(local_buffer_[1])<<"\n";
 			return;
@@ -137,22 +137,86 @@ private:
 			auto self = shared_from_this();
 			// resolve the domain
 			asio::ip::tcp::resolver::query q(dest_host_, dest_port_);
-			resolver_.async_resolve(q, [self](const asio::error_code& err, const asio::ip::tcp::resolver::iterator it) {
+			resolver_.async_resolve(q, [self, this](const asio::error_code& err, asio::ip::tcp::resolver::results_type results) {
 					if(err)
 					{
 						cout<<"resolve error: "<<err.message()<<"\n";
 						return;
 					}
 
-					dest_socket_.async_connect(it->endpoint(), std::bind(&Sock5Session::HandleConnectDest, self, _1, _2));
+					dest_socket_.async_connect(*results.begin(), [self, this](const asio::error_code& err) {
+						if(err)
+						{
+							cout<<"connect to dest err: "<<err.message()<<"\n";
+							return;
+						}
+
+						cout<<"connected to host="<<dest_host_<<", port="<<dest_port_<<", now read data\n";
+
+						// connected to dest server, now receive data and transfer
+						ReadFromLocal();
+						ReadFromDest();
+					});
 				});
 		}
 		//cout<<"recv connect cmd, host="<<dest_host_<<", port="<<dest_port_<<"\n";
 	}
 
-	void HandleConnectDest(const asio::error_code& err, asio::ip::tcp::resolver::iterator i)
+	void ReadFromLocal()
 	{
+		auto self = shared_from_this();
+		local_socket_.async_read_some(asio::buffer(local_buffer_), [self, this](const asio::error_code& err, size_t bytes_transferred) {
+				if(! err)
+				{
+					cout<<"recved data, length: "<<bytes_transferred<<"\n";
+					asio::async_write(dest_socket_, asio::buffer(local_buffer_, bytes_transferred), [self, this](const asio::error_code& err, std::size_t bytes_transferred) {
+						if(! err)
+						{
+							ReadFromLocal();
+						}
+						else
+						{
+							cout<<"send to dest error: "<<err.message()<<"\n";
+							local_socket_.close();
+							dest_socket_.close();
+						}
+					});
+				}
+				else
+				{
+					cout<<"receive from local error: "<<err.message()<<"\n";
+					local_socket_.close();
+					dest_socket_.close();
+				}
+			});
+	}
 
+	void ReadFromDest()
+	{
+		auto self = shared_from_this();
+		dest_socket_.async_read_some(asio::buffer(dest_buffer_), [self, this](const asio::error_code& err, size_t bytes_transferred) {
+				if(! err)
+				{
+					asio::async_write(local_socket_, asio::buffer(dest_buffer_, bytes_transferred), [self, this](const asio::error_code& err, std::size_t bytes_transferred) {
+						if(! err)
+						{
+							ReadFromDest();
+						}
+						else
+						{
+							cout<<"send to dest error: "<<err.message()<<"\n";
+							local_socket_.close();
+							dest_socket_.close();
+						}
+					});
+				}
+				else
+				{
+					cout<<"receive from local error: "<<err.message()<<"\n";
+					local_socket_.close();
+					dest_socket_.close();
+				}
+			});
 	}
 private:
 	asio::io_context& io_context_;

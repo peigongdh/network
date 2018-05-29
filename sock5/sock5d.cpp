@@ -17,7 +17,8 @@ using std::placeholders::_2;
 class Sock5Session : public std::enable_shared_from_this<Sock5Session>
 {
 public:
-	explicit Sock5Session(asio::io_context& ioc): io_context_(ioc), local_socket_(ioc), dest_socket_(ioc)
+	explicit Sock5Session(asio::io_context& ioc): io_context_(ioc), local_socket_(ioc), dest_socket_(ioc),
+		resolver_(ioc)
 	{
 	}
 public:
@@ -132,13 +133,32 @@ private:
 
 				cout<<"connect with host="<<dest_host_<<", port="<<dest_port_<<"\n";
 			}
+
+			auto self = shared_from_this();
+			// resolve the domain
+			asio::ip::tcp::resolver::query q(dest_host_, dest_port_);
+			resolver_.async_resolve(q, [self](const asio::error_code& err, const asio::ip::tcp::resolver::iterator it) {
+					if(err)
+					{
+						cout<<"resolve error: "<<err.message()<<"\n";
+						return;
+					}
+
+					dest_socket_.async_connect(it->endpoint(), std::bind(&Sock5Session::HandleConnectDest, self, _1, _2));
+				});
 		}
 		//cout<<"recv connect cmd, host="<<dest_host_<<", port="<<dest_port_<<"\n";
+	}
+
+	void HandleConnectDest(const asio::error_code& err, asio::ip::tcp::resolver::iterator i)
+	{
+
 	}
 private:
 	asio::io_context& io_context_;
 	asio::ip::tcp::socket local_socket_;
 	asio::ip::tcp::socket dest_socket_;
+	asio::ip::tcp::resolver resolver_;
 private:
 	char local_buffer_[1024]; // buffer for local_socket_ to read
 	char dest_buffer_[1024]; // buffer for dest socket_ to read

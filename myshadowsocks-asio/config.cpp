@@ -27,6 +27,11 @@ bool SSConfig::ReadConfig(std::string file_name)
 		std::smatch match;
 		if(std::regex_match(line, match, reg))
 		{
+			if(match.size() != 3)
+			{
+				std::cout<<"match size is "<<match.size()<<"\n";
+			}
+
 			//cout<<match[1].str()<<" = "<<match[2].str()<<"\n";
 			string name = match[1].str();
 			string value = match[2].str();

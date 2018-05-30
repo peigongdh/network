@@ -19,7 +19,7 @@ bool SSConfig::ReadConfig(std::string file_name)
 	}
 
 	// read aaa = bbb
-	std::regex reg("([\\w_]+)[ ]?=[ ]?([^ ]+)");
+	std::regex reg("([\\w_]+)[ ]*=[ ]*([^ ]+)[ ]*");
 
 	std::string line;
 	while(std::getline(f, line))

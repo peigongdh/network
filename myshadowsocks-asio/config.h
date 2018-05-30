@@ -31,7 +31,7 @@ public:
 private:
 	SSConfig()
 	{
-		server_endpoint = asio::ip::tcp::endpoint(asio::ip::address::from_string(server_ip), server_port);
+		//server_endpoint = asio::ip::tcp::endpoint(asio::ip::address::from_string(server_ip), server_port);
 	}
 private:
 	std::string server_ip = "127.0.0.1";

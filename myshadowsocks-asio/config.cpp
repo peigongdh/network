@@ -19,7 +19,7 @@ bool SSConfig::ReadConfig(std::string file_name)
 	}
 
 	// read aaa = bbb
-	std::regex reg("^([\\w_]+)[ ]?=[ ]?([\\w\\d\\.]+)$");
+	std::regex reg("([\\w_]+)[ ]?=[ ]?([^ ]+)");
 
 	std::string line;
 	while(std::getline(f, line))
@@ -30,6 +30,8 @@ bool SSConfig::ReadConfig(std::string file_name)
 			//cout<<match[1].str()<<" = "<<match[2].str()<<"\n";
 			string name = match[1].str();
 			string value = match[2].str();
+
+			//std::cout<<"reading config:"<<name<<" = "<<value<<"\n";
 
 			if(name == "server_ip")
 			{
@@ -50,6 +52,9 @@ bool SSConfig::ReadConfig(std::string file_name)
 			}
 		}
 	}
+
+	std::cout<<"init, server_ip="<<server_ip<<", server_port="<<server_port<<"\n";
+	server_endpoint = asio::ip::tcp::endpoint(asio::ip::address::from_string(server_ip), server_port);
 
 	return true;
 }

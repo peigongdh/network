@@ -12,9 +12,9 @@
 class SSConfig
 {
 public:
-	std::string server_ip;
-	short server_port;
-	short local_port; // local server is 127.0.0.1
+	std::string server_ip = "127.0.0.1";
+	short server_port = 8080;
+	short local_port = 8088; // local server is 127.0.0.1
 	asio::ip::tcp::endpoint server_endpoint; // ip::tcp::endpoint(ip::address::from_string(...), ...)
 	asio::ip::tcp::endpoint& ServerEndpoint()
 	{
@@ -27,7 +27,10 @@ public:
 		return instance;
 	}
 private:
-	SSConfig() {}
+	SSConfig()
+	{
+		server_endpoint = asio::ip::tcp::endpoint(asio::ip::address::from_string(server_ip), server_port);
+	}
 };
 
 

@@ -22,12 +22,10 @@ public:
 	SSSession(asio::io_context& ioc):io_context_(ioc), local_socket_(ioc), remote_socket_(ioc), resolver_(ioc) {}
 	void LocalStart(); // only called in the "local" module
 	void ServerStart(); // only called in the "server" module
-	void LocalHandShake();
-	void ServerHandShake();
 private:
 	using buffer_type = char [BUFFER_SIZE];
-	void TransferData(asio::ip::tcp::socket& sock1, asio::ip::tcp::socket& sock2,
-			buffer_type& buff1, buffer_type& buff2);
+	void RecvEncryptSend(asio::ip::tcp::socket& sock1, asio::ip::tcp::socket& sock2, buffer_type& buff);
+	void RecvDecryptSend(asio::ip::tcp::socket& sock1, asio::ip::tcp::socket& sock2, buffer_type& buff);
 	void Close(const asio::error_code& ec);
 private:
 	asio::io_context& io_context_;
@@ -35,6 +33,8 @@ private:
 	asio::ip::tcp::socket remote_socket_;
 	asio::ip::tcp::resolver resolver_;
 private:
+	std::string dest_host_;
+	std::string dest_port_;
 	char local_buffer_[BUFFER_SIZE]; // receive from local_socket_
 	char remote_buffer_[BUFFER_SIZE]; // receive from remote_socket_
 };

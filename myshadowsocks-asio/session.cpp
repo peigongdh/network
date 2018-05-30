@@ -82,7 +82,7 @@ void SSSession::LocalStart()
 		}
 
 		// connect to server
-		remote_socket_.async_connect(SSConfig::Instance().server_endpoint, [self, this](const asio::error_code& ec) {
+		remote_socket_.async_connect(SSConfig::Instance().ServerEndpoint(), [self, this](const asio::error_code& ec) {
 			ERROR_RETURN
 			// connected to server, send encrypted 05 01 00
 			Cypher::Instance().Encrypt(local_buffer_, 3);

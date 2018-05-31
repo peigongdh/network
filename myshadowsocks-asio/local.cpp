@@ -22,7 +22,7 @@ int main(int argc, const char* argv[])
 
 	std::cout<<"local listen at port:"<<SSConfig::Instance().LocalPort()<<"\n";
 	asio::ip::tcp::endpoint ep(asio::ip::tcp::v4(), SSConfig::Instance().LocalPort());
-	asio::io_context io_context;
+	asio::io_context io_context(1); // only one thread mode
 	Socks5Server ss(io_context, ep);
 	ss.LocalStart();
 	io_context.run();

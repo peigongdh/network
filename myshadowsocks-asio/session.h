@@ -24,7 +24,9 @@ public:
 	void ServerStart(); // only called in the "server" module
 private:
 	using buffer_type = char [BUFFER_SIZE];
+	//recv data from sock1, into buff, then encrypt, then send to sock2
 	void RecvEncryptSend(asio::ip::tcp::socket& sock1, asio::ip::tcp::socket& sock2, buffer_type& buff);
+	//recv data from sock1, into buff, then decrypt, then send to sock2
 	void RecvDecryptSend(asio::ip::tcp::socket& sock1, asio::ip::tcp::socket& sock2, buffer_type& buff);
 	void Close(const asio::error_code& ec);
 private:

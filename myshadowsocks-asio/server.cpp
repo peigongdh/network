@@ -21,7 +21,7 @@ int main(int argc, const char* argv[])
 	}
 
 	std::cout<<"server listen on port: "<<SSConfig::Instance().ServerPort()<<"\n";
-	asio::io_context io_context;
+	asio::io_context io_context(1); // one thread
 	Socks5Server ss(io_context, SSConfig::Instance().ServerEndpoint());
 	ss.ServerStart();
 	io_context.run();

@@ -15,6 +15,10 @@ class Cypher
 	static const int MAX_UCHAR = 256;
 private:
 	Cypher();
+	Cypher(const Cypher&) = delete;
+	Cypher& operator=(const Cypher&) = delete;
+	Cypher(Cypher&&) = delete;
+	Cypher& operator=(Cypher&&) = delete;
 public:
 	static Cypher& Instance()
 	{

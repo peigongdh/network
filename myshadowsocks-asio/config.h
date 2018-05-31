@@ -30,6 +30,10 @@ public:
 	}
 private:
 	SSConfig() {}
+	SSConfig(const SSConfig&) = delete;
+	SSConfig& operator=(const SSConfig&) = delete;
+	SSConfig(SSConfig&&) = delete;
+	SSConfig& operator=(SSConfig&&) = delete;
 private:
 	std::string server_ip;
 	short server_port;

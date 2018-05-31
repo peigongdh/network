@@ -6,41 +6,23 @@
 #include "encrypt.h"
 #include "config.h"
 
-#define LogErrorCode(msg, ec) do { \
-		std::cerr<<"[<<local_fd = "<< local_socket_.native_handle() <<"], line="<<__LINE__<<", "<<msg  ; \
-		if(ec) \
-		{ \
-			std::cerr<<" err: "<<ec.message(); \
-		} \
-		std::cerr<<"\n"; \
-		}while(0);
-
 #define LogErr(msg) do { \
 		std::cerr<<"[<<local_fd = "<< local_socket_.native_handle() <<"], line="<<__LINE__<<", "<<msg<<"\n"; \
 		}while(0);
 
 #define CLOSE_EC else { Close(ec); }
 
-#define ERROR_RETURN  if( ec) { Close(ec); return; }
+#define ERROR_RETURN  if(ec) { Close(ec); return; }
 
 void SSSession::RecvEncryptSend(asio::ip::tcp::socket& sock1,
 		asio::ip::tcp::socket& sock2, buffer_type& buff)
 {
 	auto self = shared_from_this();
 	sock1.async_receive(asio::buffer(buff), [self, this, &sock1, &sock2, &buff](const asio::error_code& ec, size_t len) {
-		if(ec)
-		{
-			Close(ec);
-			return;
-		}
+		ERROR_RETURN
 		Cypher::Instance().Encrypt(buff, len);
 		asio::async_write(sock2, asio::buffer(buff, len), [self, this, &sock1, &sock2, &buff](const asio::error_code& ec, size_t len) {
-			if(ec)
-			{
-				Close(ec);
-				return;
-			}
-
+			ERROR_RETURN
 			RecvEncryptSend(sock1, sock2, buff);
 		});
 	});
@@ -51,19 +33,10 @@ void SSSession::RecvDecryptSend(asio::ip::tcp::socket& sock1,
 {
 	auto self = shared_from_this();
 	sock1.async_receive(asio::buffer(buff), [self, this, &sock1, &sock2, &buff](const asio::error_code& ec, size_t len) {
-		if(ec)
-		{
-			Close(ec);
-			return;
-		}
+		ERROR_RETURN
 		Cypher::Instance().Decrypt(buff, len);
 		asio::async_write(sock2, asio::buffer(buff, len), [self, this, &sock1, &sock2, &buff](const asio::error_code& ec, size_t len) {
-			if(ec)
-			{
-				Close(ec);
-				return;
-			}
-
+			ERROR_RETURN
 			RecvDecryptSend(sock1, sock2, buff);
 		});
 	});
@@ -193,7 +166,7 @@ void SSSession::ServerStart()
 					{
 						if(len != 10)
 						{
-							std::cout<<"connect with ip length error, not 10, but "<<len<<"\n";
+							std::cerr<<"connect with ip length error, not 10, but "<<len<<"\n";
 							local_socket_.close();
 							return;
 						}
@@ -202,21 +175,20 @@ void SSSession::ServerStart()
 						dest_host_ = asio::ip::address_v4(ntohl(int_ip)).to_string();
 						uint16_t int_port = *(uint16_t*)(&local_buffer_[8]);
 						dest_port_ = std::to_string(ntohs(int_port));
-						std::cout<<"connect with ip[4]="<<dest_host_<<", port="<<dest_port_<<"\n";
+						//std::cout<<"connect with ip[4]="<<dest_host_<<", port="<<dest_port_<<"\n";
 					}
 					else if(local_buffer_[3] == 0x03) // 05 01 00 03 host_len host[host_len] port[2]
 					{
 						uint8_t host_len = local_buffer_[4];
 						if(len != 7 + host_len)
 						{
-							std::cout<<"connect with hostname length error, not "<<7+host_len<<", but "<<len<<"\n";
+							std::cerr<<"connect with hostname length error, not "<<7+host_len<<", but "<<len<<"\n";
 							return;
 						}
 
 						dest_host_ = std::string(&local_buffer_[5], host_len);
 						uint16_t int_port = *(uint16_t*)(&local_buffer_[len-2]);
 						dest_port_ = std::to_string(ntohs(int_port));
-
 						std::cout<<"connect with host="<<dest_host_<<", port="<<dest_port_<<"\n";
 					}
 
@@ -260,33 +232,34 @@ void Socks5Server::LocalStart()
 {
 	auto p = std::make_shared<SSSession>(io_context_);
 	acceptor_.async_accept(p->local_socket_, [p, this](const asio::error_code& err)
-			{
-				if(! err)
-				{
-					p->LocalStart();
-					LocalStart();
-				}
-				else
-				{
-					std::cout<<"accept error, msg:"<<err.message()<<"\n";
-				}
-			});
+	{
+		if(! err)
+		{
+			p->LocalStart();
+			LocalStart();
+		}
+		else
+		{
+			std::cerr<<"accept error, msg:"<<err.message()<<"\n";
+		}
+	});
 }
 
 void Socks5Server::ServerStart()
 {
 	auto p = std::make_shared<SSSession>(io_context_);
 	acceptor_.async_accept(p->local_socket_, [p, this](const asio::error_code& err)
-			{
-				if(! err)
-				{
-					p->ServerStart();
-					ServerStart();
-				}
-				else
-				{
-					std::cout<<"accept error, msg:"<<err.message()<<"\n";
-				}
-			});
+	{
+		if(! err)
+		{
+			std::cout<<"new conn, from ip:"<<p->local_socket_.remote_endpoint().address().to_string()<<"\n";
+			p->ServerStart();
+			ServerStart();
+		}
+		else
+		{
+			std::cerr<<"accept error, msg:"<<err.message()<<"\n";
+		}
+	});
 }
 

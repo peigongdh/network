@@ -2,12 +2,38 @@
 				frank May 30, 2018
 */
 #include <iostream>
-#include <regex>
 #include <fstream>
 #include <string>
+#include <vector>
+#include <map>
 #include "config.h"
 
 using namespace std;
+
+void StringSplit(const std::string& str, const std::string& delimiters,
+        std::vector<std::string>& tokens)
+{
+    string::size_type lastPos = str.find_first_not_of(delimiters, 0);
+    string::size_type pos = str.find_first_of(delimiters, lastPos);
+    while (string::npos != pos || string::npos != lastPos)
+    {
+        tokens.push_back(str.substr(lastPos, pos - lastPos));
+        lastPos = str.find_first_not_of(delimiters, pos);
+        pos = str.find_first_of(delimiters, lastPos);
+    }
+}
+
+std::string& StringTrim(std::string &str)
+{
+    if (str.empty())
+    {
+        return str;
+    }
+
+    str.erase(0, str.find_first_not_of(" "));
+    str.erase(str.find_last_not_of(" ") + 1);
+    return str;
+}
 
 bool SSConfig::ReadConfig(std::string file_name)
 {
@@ -18,47 +44,35 @@ bool SSConfig::ReadConfig(std::string file_name)
 		return false;
 	}
 
-	// read aaa = bbb
-	std::regex reg("([\\w_]+)[ ]*=[ ]*([^ ]+)[ ]*");
-
+	std::map<string, string> values;
 	std::string line;
 	while(std::getline(f, line))
 	{
-		std::smatch match;
-		if(std::regex_match(line, match, reg))
+		line = StringTrim(line);
+		if(line[0] == '#' || (line[0] == '/' && line[1] == '/'))
 		{
-			if(match.size() != 3)
-			{
-				std::cout<<"match size is "<<match.size()<<"\n";
-			}
-
-			//cout<<match[1].str()<<" = "<<match[2].str()<<"\n";
-			string name = match[1].str();
-			string value = match[2].str();
-
-			//std::cout<<"reading config:"<<name<<" = "<<value<<"\n";
-
-			if(name == "server_ip")
-			{
-				server_ip = value;
-			}
-			else if(name == "server_port")
-			{
-				server_port = std::stoi(value);
-			}
-			else if(name == "local_port")
-			{
-				local_port = std::stoi(value);
-			}
-			else
-			{
-				std::cerr<<"invalid config line: "<<line<<"\n";
-				return false;
-			}
+			continue;
 		}
+
+		std::vector<string> vs;
+		StringSplit(line, " ", vs);
+
+		if(vs.size() != 3)
+		{
+			continue;
+		}
+
+		string name = vs[0];
+		string value = vs[2];
+
+		values[name] = value;
 	}
 
-	std::cout<<"init, server_ip="<<server_ip<<", server_port="<<server_port<<"\n";
+	server_ip = values["server_ip"];
+	server_port = std::stoi(values["server_port"]);
+	local_port = std::stoi(values["local_port"]);
+
+	std::cout<<"init, server_ip="<<server_ip<<", server_port="<<server_port<<", local_port="<<local_port<<"\n";
 	server_endpoint = asio::ip::tcp::endpoint(asio::ip::address::from_string(server_ip), server_port);
 
 	return true;

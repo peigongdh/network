@@ -3,6 +3,7 @@
 				frank May 30, 2018
 */
 #include <iostream>
+#include <unistd.h>
 #include "session.h"
 #include "config.h"
 
@@ -19,6 +20,8 @@ int main(int argc, const char* argv[])
 	{
 		return 1;
 	}
+
+	daemon(0, 0);
 
 	std::cout<<"server listen on port: "<<SSConfig::Instance().ServerPort()<<"\n";
 	asio::io_context io_context(1); // one thread

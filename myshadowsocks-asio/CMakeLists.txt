@@ -7,3 +7,5 @@ set(EXECUTABLE_OUTPUT_PATH ${BINARY_OUTPUT_DIR})
 
 target_include_directories(server PRIVATE ${ASIO_INCLUDE_DIR})
 target_include_directories(local PRIVATE ${ASIO_INCLUDE_DIR})
+target_link_libraries(server pthread)
+target_link_libraries(local pthread)

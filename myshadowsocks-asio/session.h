@@ -19,7 +19,7 @@ class SSSession : public std::enable_shared_from_this<SSSession>
 	friend class Socks5Server;
 	static const int BUFFER_SIZE = 1024;
 public:
-	SSSession(asio::io_context& ioc):io_context_(ioc), local_socket_(ioc), remote_socket_(ioc), resolver_(ioc) {}
+	SSSession(asio::io_context& ioc):local_socket_(ioc), remote_socket_(ioc), resolver_(ioc) {}
 	void LocalStart(); // only called in the "local" module
 	void ServerStart(); // only called in the "server" module
 private:
@@ -30,7 +30,6 @@ private:
 	void RecvDecryptSend(asio::ip::tcp::socket& sock1, asio::ip::tcp::socket& sock2, buffer_type& buff);
 	void Close(const asio::error_code& ec);
 private:
-	asio::io_context& io_context_;
 	asio::ip::tcp::socket local_socket_; // listen as server for client, or for local
 	asio::ip::tcp::socket remote_socket_;
 	asio::ip::tcp::resolver resolver_;

@@ -189,11 +189,15 @@ void SSSession::ServerStart()
 						dest_host_ = std::string(&local_buffer_[5], host_len);
 						uint16_t int_port = *(uint16_t*)(&local_buffer_[len-2]);
 						dest_port_ = std::to_string(ntohs(int_port));
-						size_t pos = dest_host_.find("google.com");
-						if(pos != std::string::npos)
+						if(dest_host_ == "www.google.com")
 						{
-							dest_host_.replace(pos, std::string("google.com").length(), "goole.ca");
+							dest_host_ = "www.google.ca";
 						}
+//						size_t pos = dest_host_.find("google.com");
+//						if(pos != std::string::npos)
+//						{
+//							dest_host_.replace(pos, std::string("google.com").length(), "goole.ca");
+//						}
 						std::cout<<"connect with host="<<dest_host_<<", port="<<dest_port_<<"\n";
 					}
 

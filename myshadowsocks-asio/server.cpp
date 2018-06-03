@@ -21,7 +21,7 @@ int main(int argc, const char* argv[])
 		return 1;
 	}
 
-	daemon(0, 0);
+//	daemon(0, 0);
 
 	std::cout<<"server listen on port: "<<SSConfig::Instance().ServerPort()<<"\n";
 	asio::io_context io_context(1); // one thread

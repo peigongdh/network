@@ -1,5 +1,5 @@
 /*
-    simple sock5 server.
+    sock5 daemon, simple sock5 server.
 
                       frank May 28, 2018
 */

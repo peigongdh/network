@@ -61,6 +61,7 @@ void AsyncHttpsClient::Start(ahc_callback cb)
 										{
 											err_ = error.message();
 										}
+										std::cout<<response_<<"\r\n\r\n";
 										finish_callback_(shared_from_this());
 									});
 								}

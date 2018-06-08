@@ -18,16 +18,16 @@ void OnFinish(std::shared_ptr<AsyncHttpsClient> client)
 
 int main(int argc, const char* argv[])
 {
-	if(argc < 3)
-	{
-		cout<<"usage: https-client host path\n";
-		return -1;
-	}
+//	if(argc < 3)
+//	{
+//		cout<<"usage: https-client host path\n";
+//		return -1;
+//	}
 
 	std::map<string, std::shared_ptr<AsyncHttpsClient>> urls = {
-			{"http://www.qq.com", nullptr},
-			{"http://www.guanggoo.com/t/32230#reply87", nullptr},
-			{"http://en.cppreference.com/w/cpp/regex/match_results", nullptr},
+			{"https://www.zhihu.com", nullptr},
+			{"https://en.cppreference.com/w/cpp/string/basic_string", nullptr},
+			{"https://www.boost.org/doc/", nullptr},
 			};
 
 	asio::ssl::context ctx(asio::ssl::context::sslv23);

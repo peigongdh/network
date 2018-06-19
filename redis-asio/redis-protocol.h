@@ -7,6 +7,8 @@ redis-protocol.h
 #define REDIS_ASIO_REDIS_PROTOCOL_H_
 
 
+// redis protocol,
+// see http://redisdoc.com/topic/protocol.html
 
 
 

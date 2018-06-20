@@ -39,6 +39,7 @@ public:
 			recv_buffer_.clear();
 			recv_buffer_.resize(1024);
 			auto self = shared_from_this();
+			//TODO: should use asio::async_receive
 			socket_.async_receive(asio::buffer(recv_buffer_), std::bind(&RedisClient::RecvFromServer, this, std::placeholders::_1, std::placeholders::_2));
 		});
 	}
@@ -106,8 +107,8 @@ int main()
 {
 	asio::io_context io_context;
 	asio::ip::tcp::endpoint server_endpoint(asio::ip::address::from_string("127.0.0.1"), 6379);
-	RedisClient client(io_context, server_endpoint);
-	client.Start();
+	std::shared_ptr<RedisClient> client = std::make_shared<RedisClient>(io_context, server_endpoint);
+	client->Start();
 	std::thread t([&io_context]() {
 		io_context.run();
 	});
@@ -115,7 +116,7 @@ int main()
 	std::string line;
 	while(std::getline(std::cin, line))
 	{
-		client.Send(line);
+		client->Send(line);
 	}
 
 	t.join();

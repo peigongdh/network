@@ -1,5 +1,5 @@
 # network
-simple network tools and libs, mainly based on asio, only asynchronously
+simple network tools and samples wrote when learning asynchronous asio.
 
 
 ## projects

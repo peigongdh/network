@@ -36,11 +36,11 @@ public:
 			std::cout<<"connected, is_open: "<<socket_.is_open()<<"\n";
 
 			// read data from server
-			recv_buffer_.clear();
-			recv_buffer_.resize(1024);
-			auto self = shared_from_this();
+			// auto self = shared_from_this();
 			//TODO: should use asio::async_receive
-			socket_.async_receive(asio::buffer(recv_buffer_), std::bind(&RedisClient::RecvFromServer, this, std::placeholders::_1, std::placeholders::_2));
+			//socket_.async_receive(asio::buffer(recv_buffer_), std::bind(&RedisClient::RecvFromServer, this, std::placeholders::_1, std::placeholders::_2));
+			asio::async_read_until(socket_, recv_stream_, "\r\n",
+					std::bind(&RedisClient::RecvFromServer, this, std::placeholders::_1, std::placeholders::_2));
 		});
 	}
 
@@ -53,19 +53,21 @@ public:
 			return;
 		}
 
-		recv_buffer_.resize(len);
-		std::cout<<recv_buffer_;
+		string line;
+		std::istream istr(&recv_stream_);
+		istr >> line;
+		std::cout<<line<<"\n";
 		// read data from server
-		recv_buffer_.clear();
-		recv_buffer_.resize(1024);
-		auto self = shared_from_this();
-		socket_.async_receive(asio::buffer(recv_buffer_), std::bind(&RedisClient::RecvFromServer, this, std::placeholders::_1, std::placeholders::_2));
+		asio::async_read_until(socket_, recv_stream_, "\r\n",
+							std::bind(&RedisClient::RecvFromServer, this, std::placeholders::_1, std::placeholders::_2));
 	}
 
 	void Send(const string& line)
 	{
+		std::cout<<"send thread:"<<std::this_thread::get_id()<<"\n";
 		auto self = shared_from_this();
 		asio::post(io_context_, [self, this, line]() {
+			std::cout<<"process line thread:"<<std::this_thread::get_id()<<"\n";
 			bool sending = ! requests_.empty();
 			requests_.push_back(line);
 			if(! sending)
@@ -101,6 +103,7 @@ private:
 	asio::ip::tcp::socket socket_;
 	asio::ip::tcp::endpoint server_endpoint_;
 	std::deque<string> requests_;
+	asio::streambuf recv_stream_;
 };
 
 int main()
@@ -113,10 +116,12 @@ int main()
 		io_context.run();
 	});
 
+	std::cout<<"main thread:"<<std::this_thread::get_id()<<"\n";
+
 	std::string line;
 	while(std::getline(std::cin, line))
 	{
-		client->Send(line);
+		client->Send("*3\r\n$3\r\nSET\r\n$5\r\nmykey\r\n$7\r\nmyvalue\r\n");
 	}
 
 	t.join();

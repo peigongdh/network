@@ -16,6 +16,7 @@
 
 using namespace std;
 
+// simulate a queue and simulate a situation where the queue may be empty.
 class PersudoQueue
 {
 public:

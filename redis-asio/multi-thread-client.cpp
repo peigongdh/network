@@ -10,6 +10,7 @@ client.cpp
 #include <thread>
 #include <deque>
 #include <asio.hpp>
+#include "redis-protocol.h"
 
 using namespace std;
 using namespace asio;
@@ -64,10 +65,10 @@ public:
 
 	void Send(const string& line)
 	{
-		std::cout<<"send thread:"<<std::this_thread::get_id()<<"\n";
+		//std::cout<<"send thread:"<<std::this_thread::get_id()<<"\n";
 		auto self = shared_from_this();
 		asio::post(io_context_, [self, this, line]() {
-			std::cout<<"process line thread:"<<std::this_thread::get_id()<<"\n";
+			//std::cout<<"process line thread:"<<std::this_thread::get_id()<<"\n";
 			bool sending = ! requests_.empty();
 			requests_.push_back(line);
 			if(! sending)
@@ -98,7 +99,6 @@ public:
 	}
 private:
 	std::string send_buffer_; // the content send to server
-	std::string recv_buffer_; // the content recv from server
 	asio::io_context& io_context_;
 	asio::ip::tcp::socket socket_;
 	asio::ip::tcp::endpoint server_endpoint_;
@@ -116,12 +116,13 @@ int main()
 		io_context.run();
 	});
 
-	std::cout<<"main thread:"<<std::this_thread::get_id()<<"\n";
+	//std::cout<<"main thread:"<<std::this_thread::get_id()<<"\n";
 
 	std::string line;
 	while(std::getline(std::cin, line))
 	{
-		client->Send("*3\r\n$3\r\nSET\r\n$5\r\nmykey\r\n$7\r\nmyvalue\r\n");
+		std::string bulk_string = Bulk::ComposeInputToBulk(line);
+		client->Send(bulk_string);
 	}
 
 	t.join();

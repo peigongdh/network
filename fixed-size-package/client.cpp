@@ -10,6 +10,7 @@
 #include <functional>
 #include <memory>
 #include <random>
+#include <map>
 #include "asio.hpp"
 #include "package.h"
 
@@ -21,11 +22,11 @@ public:
 	// get a pkg, if the queue is empty, return false
 	bool Recv(Package& pkg)
 	{
-//		std::uniform_int_distribution<int> d(0, 100);
-//		if(d(dre_) < 50)
-//		{
-//			return false;
-//		}
+		std::uniform_int_distribution<int> d(0, 100);
+		if(d(dre_) < 50)
+		{
+			return false;
+		}
 
 		std::uniform_int_distribution<uint32_t> d2(0, MAX_BODY_LEN);
 		uint32_t random_len = d2(dre_);
@@ -43,12 +44,16 @@ private:
 	std::default_random_engine dre_;
 };
 
+class Session;
+using close_callback = std::function<void(std::shared_ptr<Session> ptr, const asio::error_code& err)>;
+
 // a connection to server
 class Session: public std::enable_shared_from_this<Session>
 {
 public:
-	Session(asio::io_context& io, const asio::ip::tcp::endpoint ep): //io_context_(io),
-		socket_(io), server_endpoint_(ep) {}
+	Session(int id, asio::io_context& io, const asio::ip::tcp::endpoint ep, close_callback cb):
+		id_(id), io_context_(io),
+		socket_(io), server_endpoint_(ep), wait_timer_(io), after_close_(cb) {}
 	void Start()
 	{
 		auto self = shared_from_this();
@@ -56,6 +61,7 @@ public:
 			if(err) // connect err
 			{
 				std::cout<<"connect err:"<<err.message()<<"\n";
+				Close(err);
 				return;
 			}
 
@@ -70,7 +76,9 @@ public:
 		bool has_pkg = PersudoQueue::Instance().Recv(request_);
 		if(! has_pkg) // the queue is empty now , sleep for a while
 		{
-
+			std::cout<<"client["<<id_<<"] sleep...\n";
+			wait_timer_ = asio::steady_timer(io_context_, std::chrono::milliseconds(100));
+			wait_timer_.async_wait(std::bind(&Session::SendQueuePkg, this));
 		}
 		else // send request to server, and then recv response
 		{
@@ -79,7 +87,7 @@ public:
 				if(err) // send error, maybe the server is down
 				{
 					std::cout<<"send request err:"<<err.message()<<"\n";
-					socket_.close();
+					Close(err);
 					return;
 				}
 
@@ -90,7 +98,7 @@ public:
 					if(err) // read err
 					{
 						std::cout<<"recv header err: "<<err.message()<<"\n";
-						socket_.close();
+						Close(err);
 						return;
 					}
 
@@ -98,7 +106,7 @@ public:
 					if(response_.header.body_len > MAX_BODY_LEN)
 					{
 						std::cout<<"invalid body len: "<<response_.header.body_len<<"\n";
-						socket_.close();
+						Close(err);
 						return;
 					}
 
@@ -107,12 +115,12 @@ public:
 						if(err)
 						{
 							std::cout<<"recv body err: "<<err.message()<<"\n";
-							socket_.close();
+							Close(err);
 							return;
 						}
 
 						// recv response ok, procece the response
-						std::cout<<"got response, body len: "<<response_.header.body_len<<"\n";
+						std::cout<<"client["<<id_<<"] got response, body len: "<<response_.header.body_len<<"\n";
 
 						// now get next pkg from queue
 						SendQueuePkg();
@@ -121,20 +129,51 @@ public:
 			});
 		}
 	}
+
+	int ID() const { return id_; }
+
+	void Close(const asio::error_code& err)
+	{
+		socket_.close();
+		after_close_(shared_from_this(), err);
+	}
 private:
-//	asio::io_context& io_context_;
+	int id_;
+	asio::io_context& io_context_;
 	asio::ip::tcp::socket socket_;
 	asio::ip::tcp::endpoint server_endpoint_;
 	Package request_;
 	Package response_;
+	asio::steady_timer wait_timer_;
+	close_callback after_close_; // when this session is close, maybe a new session should start, do it in this function
 };
 
 int main()
 {
 	asio::io_context io(1);
 	asio::ip::tcp::endpoint ep(asio::ip::address::from_string("127.0.0.1"), 12345);
-	std::shared_ptr<Session> p = std::make_shared<Session>(io, ep);
-	p->Start();
+
+	// all live clients, save them in a map
+	std::map<int, std::shared_ptr<Session>> clients;
+
+	// close callback
+	std::function<void(std::shared_ptr<Session>, const asio::error_code&)> f;
+	f = [&f, &io, &ep, &clients](std::shared_ptr<Session> p, const asio::error_code& err) {
+		// some client is closed. get the id and create a new one.
+		int id = p->ID();
+		clients.erase(id); // erase the old one
+		std::shared_ptr<Session> new_ptr = std::make_shared<Session>(id, io, ep, f);
+		clients.insert(std::make_pair(id, new_ptr));
+		new_ptr->Start();
+	};
+
+	for(int i = 1; i <= 10; ++i)
+	{
+		std::shared_ptr<Session> p = std::make_shared<Session>(i, io, ep, f);
+		clients.insert(std::make_pair(i, p));
+		p->Start();
+	}
+
 	io.run();
 	return 0;
 }

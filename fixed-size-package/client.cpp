@@ -78,7 +78,7 @@ public:
 		if(! has_pkg) // the queue is empty now , sleep for a while
 		{
 			std::cout<<"client["<<id_<<"] sleep...\n";
-			wait_timer_ = asio::steady_timer(io_context_, std::chrono::milliseconds(100));
+			wait_timer_.expires_after(std::chrono::milliseconds(100));
 			wait_timer_.async_wait(std::bind(&Session::SendQueuePkg, this));
 		}
 		else // send request to server, and then recv response

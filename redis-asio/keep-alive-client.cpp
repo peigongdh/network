@@ -22,18 +22,21 @@ class RedisCli: public std::enable_shared_from_this<RedisCli>
 	using callback = std::function<void(std::shared_ptr<RedisCli>, const asio::error_code&)>;
 	enum CLIENT_STATUS {
 		CS_INITED = 0,
-		CS_CONNECTTING,
+		CS_CONNECTING,
+		CS_CONNECTED, // ready for send and recv data
 		CS_SENDING,
 		CS_RECEIVING
 	};
 public:
 	RedisCli(int id, asio::io_context& io_context, asio::ip::tcp::endpoint server_endpoint, callback cb): id_(id),
-		io_context_(io_context), socket_(io_context_),  server_endpoint_(server_endpoint), do_finish_(cb) {}
+		status_(CS_INITED), io_context_(io_context), socket_(io_context_),
+		server_endpoint_(server_endpoint), do_finish_(cb) {}
 
 	int Id() const { return id_;}
 
 	void Start()
 	{
+		status_ = CS_CONNECTING;
 		auto self = shared_from_this();
 		socket_.async_connect(server_endpoint_, [this, self](const asio::error_code& err) {
 			if(err) // connect error
@@ -41,11 +44,14 @@ public:
 				do_finish_(self, err);
 				return;
 			}
+
+			status_ = CS_CONNECTED;
 		});
 	}
 
 	void SendAndReceive(const std::string& line)
 	{
+		status_ = CS_SENDING;
 		send_buff_ = line;
 		auto self = shared_from_this();
 		asio::async_write(socket_, asio::buffer(line), [this, self](const asio::error_code& err, size_t len){
@@ -55,42 +61,30 @@ public:
 				return;
 			}
 
-			// recv line
-			asio::async_read_until(socket_, asio::dynamic_buffer(recv_buff_), "\r\n",
-					[this, self](const asio::error_code& err, size_t len) {
-				if(err)
-				{
-					do_finish_(self, err);
-					return;
-				}
-
-				if(recv_buff_[0] == '*') // read multiline
-				{
-					line_count_ = std::stoi(std::string(&recv_buff_[1], len - 3));
-					std::cout<<"we got "<<line_count_<<" lines.\n";
-					std::function<void(const asio::error_code& err, size_t len)> f;
-					f = [f, this, self](const asio::error_code& err, size_t len) {
-						if(line_count_ > 0)
-						{
-
-						}
-					};
-				}
-				else // just read one line
-				{
-					recv_data_ = std::string(&recv_buff_[0], len);
-					do_finish_(self, err);
-				}
-			});
+			status_ = CS_RECEIVING;
+			socket_.async_read_some(asio::buffer(recv_buff_),
+					std::bind(&RedisCli::DoReceive, this, std::placeholders::_1, std::placeholders::_2));
 		});
 	}
 private:
+	// recv response, parse by state machine
+	void DoReceive(const asio::error_code& err, size_t len)
+	{
+		// redis protocol: https://redis.io/topics/protocol
+		//* bulk, show as array. *-1 is empty array
+		//+ simple string
+		//- err string
+		//$ string with length. $0 is empty string, $-1 is nil
+		//: number
+	}
+private:
 	int id_;
+	CLIENT_STATUS status_;
 	asio::io_context& io_context_;
 	asio::ip::tcp::socket socket_;
 	std::string send_buff_;
-	std::string recv_buff_;
-	int line_count_; // multi line
+	char recv_buff_[1024];
+	int line_count_; // receive multi line
 	std::string recv_data_;
 	asio::ip::tcp::endpoint server_endpoint_;
 	callback do_finish_; // callback after one shot of sending and receiving

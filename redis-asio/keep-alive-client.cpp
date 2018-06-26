@@ -17,6 +17,51 @@
 #include <list>
 #include "asio.hpp"
 
+using namespace std;
+
+class AbstractReplyItem
+{
+public:
+	virtual string ToString() = 0;
+	virtual int Feed(char c) = 0;
+	virtual ~AbstractReplyItem() {}
+};
+
+// array,  start with *
+class ArrayItem: public AbstractReplyItem, public std::enable_shared_from_this<ArrayItem>
+{
+private:
+	vector<std::shared_ptr<AbstractReplyItem>> items_;
+};
+
+// start with +
+class SimpleStringItem: public AbstractReplyItem, public std::enable_shared_from_this<ArrayItem>
+{
+private:
+	string content_;
+};
+
+// start with -
+class ErrString: public AbstractReplyItem, public std::enable_shared_from_this<ArrayItem>
+{
+private:
+	string content_;
+};
+
+// string with length, start with $
+class BulkString: public AbstractReplyItem, public std::enable_shared_from_this<ArrayItem>
+{
+private:
+	int length_;
+	string content;
+};
+
+class NumberItem: public AbstractReplyItem, public std::enable_shared_from_this<ArrayItem>
+{
+private:
+	int number_;
+};
+
 class RedisCli: public std::enable_shared_from_this<RedisCli>
 {
 	using callback = std::function<void(std::shared_ptr<RedisCli>, const asio::error_code&)>;

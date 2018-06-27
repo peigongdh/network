@@ -19,44 +19,51 @@
 
 using namespace std;
 
-class AbstractReplyItem
+enum class ParseResult
+{
+	PR_CONTINUE,
+	PR_FINISHED,
+	PR_ERROR
+};
+
+class AbstractReplyItem: public std::enable_shared_from_this<AbstractReplyItem>
 {
 public:
 	virtual string ToString() = 0;
-	virtual int Feed(char c) = 0;
+	virtual ParseResult Feed(char c) = 0;
 	virtual ~AbstractReplyItem() {}
 };
 
 // array,  start with *
-class ArrayItem: public AbstractReplyItem, public std::enable_shared_from_this<ArrayItem>
+class ArrayItem: public AbstractReplyItem
 {
 private:
 	vector<std::shared_ptr<AbstractReplyItem>> items_;
 };
 
 // start with +
-class SimpleStringItem: public AbstractReplyItem, public std::enable_shared_from_this<ArrayItem>
+class SimpleStringItem: public AbstractReplyItem
 {
 private:
 	string content_;
 };
 
 // start with -
-class ErrString: public AbstractReplyItem, public std::enable_shared_from_this<ArrayItem>
+class ErrString: public AbstractReplyItem
 {
 private:
 	string content_;
 };
 
 // string with length, start with $
-class BulkString: public AbstractReplyItem, public std::enable_shared_from_this<ArrayItem>
+class BulkString: public AbstractReplyItem
 {
 private:
 	int length_;
 	string content;
 };
 
-class NumberItem: public AbstractReplyItem, public std::enable_shared_from_this<ArrayItem>
+class NumberItem: public AbstractReplyItem
 {
 private:
 	int number_;

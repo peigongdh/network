@@ -82,7 +82,7 @@ class RedisCli: public std::enable_shared_from_this<RedisCli>
 public:
 	RedisCli(int id, asio::io_context& io_context, asio::ip::tcp::endpoint server_endpoint, callback cb): id_(id),
 		status_(CS_INITED), io_context_(io_context), socket_(io_context_),
-		server_endpoint_(server_endpoint), do_finish_(cb) {}
+		server_endpoint_(server_endpoint), do_finish_(cb), current_item_(nullptr) {}
 
 	int Id() const { return id_;}
 
@@ -128,6 +128,44 @@ private:
 		//- err string
 		//$ string with length. $0 is empty string, $-1 is nil
 		//: number
+		if(err)
+		{
+			do_finish_(shared_from_this(), err);
+			return;
+		}
+
+		for(char* p = recv_buff_; p < recv_buff_ + len; ++p)
+		{
+			if(! current_item_)
+			{
+				switch(*p)
+				{
+				case '*':
+					current_item_ = std::make_shared<ArrayItem>;
+					break;
+				case '+':
+					current_item_ = std::make_shared<SimpleStringItem>;
+					break;
+				case '-':
+					current_item_ = std::make_shared<ErrString>;
+					break;
+				case '$':
+					current_item_ = std::make_shared<BulkString>;
+					break;
+				case ':':
+					current_item_ = std::make_shared<NumberItem>;
+					break;
+				default:
+					do_finish_(shared_from_this(), asio::error_code(-1));
+					return;
+					break;
+				}
+			}
+			else
+			{
+				current_item_->Feed(*p);
+			}
+		}
 	}
 private:
 	int id_;
@@ -140,6 +178,7 @@ private:
 	std::string recv_data_;
 	asio::ip::tcp::endpoint server_endpoint_;
 	callback do_finish_; // callback after one shot of sending and receiving
+	std::shared_ptr<AbstractReplyItem> current_item_; // current item when parsing
 };
 
 //simulate a queue and the queue generates cmd.

@@ -202,160 +202,98 @@ private:
 	int number_ = -1;
 };
 
+class RedisCli;
+std::list<std::shared_ptr<RedisCli>> free_clients; // available clients, others are busy
+
 class RedisCli: public std::enable_shared_from_this<RedisCli>
 {
-	using callback = std::function<void(std::shared_ptr<RedisCli>, const asio::error_code&)>;
-	enum CLIENT_STATUS {
-		CS_INITED = 0,
-		CS_CONNECTING,
-		CS_CONNECTED, // ready for send and recv data
-		CS_SENDING,
-		CS_RECEIVING,
-		CS_FINISH_ONE
-	};
 public:
-	RedisCli(int id, asio::io_context& io_context, asio::ip::tcp::endpoint server_endpoint, callback cb): id_(id),
-		connected_(false), status_(CS_INITED), io_context_(io_context), socket_(io_context_),
-		server_endpoint_(server_endpoint), do_finish_(cb), current_item_(nullptr) {}
-
-	int Id() const { return id_;}
-
-	bool Connected() const { return connected_; }
+	RedisCli(int id, asio::io_context& io, asio::ip::tcp::endpoint ep):
+		id_(id), io_(io), socket_(io_), server_ep_(ep) {}
 
 	void Start()
 	{
-		status_ = CS_CONNECTING;
 		auto self = shared_from_this();
-		socket_.async_connect(server_endpoint_, [this, self](const asio::error_code& err) {
-			if(err) // connect error
+		socket_.async_connect(server_ep_, [self, this](const asio::error_code& err) {
+			if(err)
 			{
-				do_finish_(self, err);
-				return;
+				cout<<"connect err: "<<err.message()<<"\n";
 			}
 
-			connected_ = true;
-			status_ = CS_CONNECTED;
-			std::cout<<"connected...\n";
+			cout<<"id="<<id_<<" connected...\n";
+			free_clients.push_back(self);
 		});
 	}
 
-	void SendAndReceive(const std::string& line)
+	int Id() const { return id_; }
+
+	void SendAndReceive(const string& cmd)
 	{
-		cout<<"send and receive...\n";
+		send_buff_ = cmd;
+		asio::async_write(socket_, asio::buffer(send_buff_), [this](const asio::error_code& err, size_t len) {
+			cout<<"sent...\n";
 
-		if(status_ != CS_CONNECTED)
-		{
-			cout<<"not connected...\n";
-			return;
-		}
-
-		std::cout<<"sending...\n";
-		//std::cout<<";;;;;;;;;;;cmd:"<<line<<"\n";
-		status_ = CS_SENDING;
-		send_buff_ = line;
-		//socket_.send(asio::buffer(&send_buff_[0], send_buff_.length()));
-		//size_t l = socket_.read_some(asio::buffer(recv_buff_));
-		//std::cout<<"===========>get:"<<string(recv_buff_, l)<<"\n";
-
-		auto self = shared_from_this();
-		asio::async_write(socket_, asio::buffer(send_buff_), [this, self](const asio::error_code& err, size_t len) {
-			std::cout<<"..............\n";
-			if(err) // send err
+			if(err)
 			{
-				std::cout<<"====>send error: "<<err.message()<<"\n";
-				do_finish_(self, err);
+				cout<<"send err:"<<err.message()<<"\n";
 				return;
 			}
-			std::cout<<"sent-----\n";
-			status_ = CS_RECEIVING;
-			socket_.async_read_some(asio::buffer(recv_buff_),
-					std::bind(&RedisCli::DoReceive, this, std::placeholders::_1, std::placeholders::_2));
+
+			socket_.async_read_some(asio::buffer(recv_buff_), std::bind(&RedisCli::RecvData, this,
+					std::placeholders::_1, std::placeholders::_2));
 		});
 	}
-private:
-	// recv response, parse by state machine
-	void DoReceive(const asio::error_code& err, size_t len)
+
+	void RecvData(const asio::error_code& err, size_t len)
 	{
-		cout<<"do-->receive\n";
-		// redis protocol: https://redis.io/topics/protocol
-		//* bulk, show as array. *-1 is empty array
-		//+ simple string
-		//- err string
-		//$ string with length. $0 is empty string, $-1 is nil
-		//: number
+		cout<<"recving data...\n";
 		if(err)
 		{
-			do_finish_(shared_from_this(), err);
+			cout<<"recv err: "<<err.message()<<"\n";
 			return;
 		}
 
 		for(char* p = recv_buff_; p < recv_buff_ + len; ++p)
 		{
-			if(! current_item_)
+			if(! item_)
 			{
 				switch(*p)
 				{
 				case '*':
-					current_item_ = std::make_shared<ArrayItem>();
+					item_ = std::make_shared<ArrayItem>();
 					break;
 				case '+':
-					current_item_ = std::make_shared<SimpleStringItem>();
+					item_ = std::make_shared<SimpleStringItem>();
 					break;
 				case '-':
-					current_item_ = std::make_shared<ErrString>();
+					item_ = std::make_shared<ErrString>();
 					break;
 				case '$':
-					current_item_ = std::make_shared<BulkString>();
+					item_ = std::make_shared<BulkString>();
 					break;
 				case ':':
-					current_item_ = std::make_shared<NumberItem>();
-					break;
-				default:
-					do_finish_(shared_from_this(), asio::error_code());
-					return;
+					item_ = std::make_shared<NumberItem>();
 					break;
 				}
 			}
 			else
 			{
-				ParseResult pr = current_item_->Feed(*p);
-				switch(pr)
+				ParseResult pr = item_->Feed(*p);
+				if(pr == ParseResult::PR_FINISHED)
 				{
-				case ParseResult::PR_CONTINUE:
-					break;
-				case ParseResult::PR_ERROR:
-					break;
-				case ParseResult::PR_FINISHED:
-					status_ = CLIENT_STATUS::CS_FINISH_ONE;
-					break;
+					cout<<item_->ToString()<<"\n";
 				}
 			}
-		}
-
-		if(status_ == CLIENT_STATUS::CS_FINISH_ONE)
-		{
-			cout<<"finish=====>"<<current_item_->ToString()<<"\n";
-			do_finish_(shared_from_this(), asio::error_code());
-		}
-		else
-		{
-			socket_.async_read_some(asio::buffer(recv_buff_),
-							std::bind(&RedisCli::DoReceive, this, std::placeholders::_1, std::placeholders::_2));
 		}
 	}
 private:
 	int id_;
-	bool connected_;
-	CLIENT_STATUS status_;
-	asio::io_context& io_context_;
+	asio::io_context& io_;
 	asio::ip::tcp::socket socket_;
-	std::string send_buff_;
+	asio::ip::tcp::endpoint server_ep_;
+	string send_buff_;
 	char recv_buff_[1024];
-	int line_count_; // receive multi line
-	std::string recv_data_;
-	asio::ip::tcp::endpoint server_endpoint_;
-	callback do_finish_; // callback after one shot of sending and receiving
-	std::shared_ptr<AbstractReplyItem> current_item_; // current item when parsing
+	std::shared_ptr<AbstractReplyItem> item_;
 };
 
 //simulate a queue and the queue generates cmd.
@@ -396,30 +334,28 @@ int main()
 	asio::ip::tcp::endpoint server_endpoint(asio::ip::address::from_string("127.0.0.1"), 6379);
 	asio::io_context io_context(1);
 
-	std::list<std::shared_ptr<RedisCli>> free_clients; // available clients, others are busy
-	std::function<void(std::shared_ptr<RedisCli>, const asio::error_code&)> finish;
-	finish = [&finish, &free_clients, &io_context, &server_endpoint](std::shared_ptr<RedisCli> p, const asio::error_code& err) {
-		std::cout<<"client["<<p->Id()<<"] finish its work\n";
-		/*
-		if(!err)
-		{
-			free_clients.push_back(p);
-		}
-		else
-		{
-			std::cout<<"client["<<p->Id()<<"] get err: "<<err.message()<<"\n";
-			// make a new client with the same id
-			std::shared_ptr<RedisCli> new_ptr = std::make_shared<RedisCli>(p->Id(), io_context, server_endpoint, finish);
-			free_clients.push_back(new_ptr);
-		}*/
-	};
+//	std::function<void(std::shared_ptr<RedisCli>, const asio::error_code&)> finish;
+//	finish = [&finish, &io_context, &server_endpoint](std::shared_ptr<RedisCli> p, const asio::error_code& err) {
+//		std::cout<<"client["<<p->Id()<<"] finish its work\n";
+//		/*
+//		if(!err)
+//		{
+//			free_clients.push_back(p);
+//		}
+//		else
+//		{
+//			std::cout<<"client["<<p->Id()<<"] get err: "<<err.message()<<"\n";
+//			// make a new client with the same id
+//			std::shared_ptr<RedisCli> new_ptr = std::make_shared<RedisCli>(p->Id(), io_context, server_endpoint, finish);
+//			free_clients.push_back(new_ptr);
+//		}*/
+//	};
 
 	RequestIter ri;
 
 	for(int i = 1; i <= 1; ++i)
 	{
-		std::shared_ptr<RedisCli> p = std::make_shared<RedisCli>(i, io_context, server_endpoint, finish);
-		free_clients.push_back(p);
+		std::shared_ptr<RedisCli> p = std::make_shared<RedisCli>(i, io_context, server_endpoint);
 		p->Start();
 	}
 
@@ -428,7 +364,7 @@ int main()
 	while(1)
 	{
 		std::string cmd;
-		if(!free_clients.empty() && free_clients.front()->Connected() && ri.NextCommand(cmd))
+		if(!free_clients.empty() && ri.NextCommand(cmd))
 		{
 			std::shared_ptr<RedisCli> p = free_clients.front();
 			free_clients.pop_front();

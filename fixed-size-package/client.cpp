@@ -35,14 +35,16 @@ public:
 		return true;
 	}
 public:
-	static PersudoQueue& Instance()
+	static PersudoQueue& Instance() // singleton
 	{
 		static PersudoQueue q;
 		return q;
 	}
 private:
-	PersudoQueue() {}
 	std::default_random_engine dre_;
+	PersudoQueue() = default;
+	PersudoQueue(const PersudoQueue&) = delete;
+	PersudoQueue& operator=(const PersudoQueue&) = delete;
 };
 
 class Session;
@@ -53,7 +55,7 @@ class Session: public std::enable_shared_from_this<Session>
 {
 public:
 	Session(int id, asio::io_context& io, const asio::ip::tcp::endpoint ep, close_callback cb):
-		id_(id), io_context_(io),
+		id_(id),
 		socket_(io), server_endpoint_(ep), wait_timer_(io), after_close_(cb) {}
 	void Start()
 	{
@@ -140,7 +142,7 @@ public:
 	}
 private:
 	int id_;
-	asio::io_context& io_context_;
+//	asio::io_context& io_context_;
 	asio::ip::tcp::socket socket_;
 	asio::ip::tcp::endpoint server_endpoint_;
 	Package request_;

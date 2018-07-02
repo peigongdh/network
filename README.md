@@ -16,5 +16,5 @@ simple network tools and samples wrote when learning asynchronous asio.
 
 **fixed-size-package** shows how to send and receive packets of a fixed-length header. Endianness is not considered in the code.
 
-**redis-asio** is a simple redis client and server(not performance consideration) implemention.
+**redis-asio** is a simple redis client implemention.
 

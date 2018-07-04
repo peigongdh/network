@@ -22,7 +22,7 @@ int main()
 	asio::io_context ioc(1);
 	for(int i = 0; i < 1000000; ++i)
 	{
-		auto t = std::make_shared<asio::steady_timer>(ioc, asio::chrono::milliseconds(100));
+		auto t = std::make_shared<asio::steady_timer>(ioc, asio::chrono::milliseconds(1));
 		t->async_wait(timeout);
 	}
 	ioc.run();

@@ -300,7 +300,7 @@ int main()
 	asio::ip::tcp::endpoint ep(asio::ip::address::from_string("127.0.0.1"), 6379);
 
 	auto p = std::make_shared<OneShotClient>(io, ep);
-	p->ExecuteCmd("*2\r\n$3\r\nget\r\n$3\r\naaa\r\n");
+	p->ExecuteCmd("*3\r\n$3\r\nset\r\n$3\r\naaa\r\n$3\r\nbbb\r\n");
 
 	io.run();
 	return 0;

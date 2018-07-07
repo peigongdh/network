@@ -12,7 +12,7 @@ simple network tools and samples wrote when learning asynchronous asio.
 
 **socks5-daemon** is a simple socks5 server implemention
 
-**shadowsocks-asio** a very simple tool, but works fine. you know if you know.
+**shadowsocks-asio** a very simple tool, but it's complete works fine. 
 
 **fixed-size-package** shows how to send and receive packets of a fixed-length header. Endianness is not considered in the code.
 

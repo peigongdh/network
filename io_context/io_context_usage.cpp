@@ -31,28 +31,44 @@ void OneThreadWithPoll()
 // 在单独一个线程中调用run，在其它线程中post
 void MultiThreadRun()
 {
-	asio::io_context io;
+	asio::io_context io; // 无论是post还是dispatch，其待调用的函数都是在io_context::run的线程里面运行
+	asio::strand<asio::io_context::executor_type> str(io.get_executor()); // strand的用法，这里用来防止cout输出错乱
 
-	thread t2([&io]() {
+	thread t2([&io, &str]() {
 		for(int i = 0; i < 10; ++i)
 		{
-			io.dispatch([]() {
-				cout<<"dispatch, threadid:"<<std::this_thread::get_id()<<"\n";
-			});
-			io.post([]() {
-				cout<<"post, threadid:"<<std::this_thread::get_id()<<"\n";
-			});
+			// 如果是调用dispatch的线程和调用io_context::run的线程不是同一个线程，则dispatch和post的效果是一样的。
+			// 此处就是一样, dispatch就等于post，都会被post到另一个线程中去执行
+//			io.post([&io, &str]() {
+				io.dispatch(asio::bind_executor(str, []() {
+					cout<<"dispatch, threadid:"<<std::this_thread::get_id()<<"\n";
+				}));
+				io.post(asio::bind_executor(str, []() {
+					cout<<"post, threadid:"<<std::this_thread::get_id()<<"\n";
+				}));
+//			});
 		}
 
-		cout<<"thread2 id:"<<std::this_thread::get_id()<<"\n";
-	});
-
-	thread t1([&io]() {
-		cout<<"run in thread:"<<std::this_thread::get_id()<<"\n";
-		io.run(); // 注意run调用的时机，如果run最先启动，起初没有任何事件，run会退出，后面post进去的回调都不会执行。
+//		cout<<"thread2 id:"<<std::this_thread::get_id()<<"\n";
 	});
 
 	t2.join();
+
+	thread t1([&io, &str]() {
+		int times = 0;
+		while(++times < 10)
+		{
+			io.restart();
+			io.run(); // 注意run调用的时机，如果run最先启动，起初没有任何事件，run会退出，后面post进去的回调都不会执行。
+			for(int i = 0; i < 10; ++i)
+			{
+				io.post(asio::bind_executor(str, []() { cout<<"====>post, this one is after next dispatch\n"; } ));
+				io.dispatch(asio::bind_executor(str, []() { cout<<"====>dispatch, this one will run first\n"; }));
+			}
+		}
+	});
+
+	//t2.join();
 	t1.join();
 
 }

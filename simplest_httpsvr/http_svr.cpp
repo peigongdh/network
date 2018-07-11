@@ -26,7 +26,10 @@ public:
 				cout<<"recv err:"<<err.message()<<"\n";
 				return;
 			}
-			//don't care what the request header is
+			string first_line = request_.substr(0, request_.find("\r\n")); // should be like: GET / HTTP/1.1
+			cout<<first_line<<"\n";
+			// process with request
+			// ...
 
 			char str[] = "HTTP/1.0 200 OK\r\n\r\n"
 					"<html>hello from http server</html>";

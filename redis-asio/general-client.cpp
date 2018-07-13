@@ -27,28 +27,119 @@ enum class ParseResult
 	PR_ERROR
 };
 
+class ArrayItem;
+class SimpleStringItem;
+class ErrString;
+class NumberItem;
+class BulkString;
+
 class AbstractReplyItem: public std::enable_shared_from_this<AbstractReplyItem>
 {
 public:
 	virtual string ToString() = 0;
 	virtual ParseResult Feed(char c) = 0;
 	virtual ~AbstractReplyItem() {}
+	// factory method
+	static std::shared_ptr<AbstractReplyItem> CreateItem(char c);
 };
 
 // array,  start with *
 class ArrayItem: public AbstractReplyItem
 {
+	enum class AI_STATUS { PARSING_LENGTH,
+		EXPECT_LF, // parsing length, got \r, expect \n
+		PARSING_SUB_ITEM_HEADER, // expect $ + - :
+		PARSEING_SUB_ITEM_CONTENT
+	};
 public:
+	ArrayItem():AbstractReplyItem(), status_(AI_STATUS::PARSING_LENGTH) {}
+
 	string ToString() override
 	{
-		return "";
+		// item_count_ == -1 is not considered here
+		string result("[");
+		for(size_t i = 0; i < items_.size(); ++i)
+		{
+			if(i > 0)
+				result.append(", ");
+			result.append(items_[i]->ToString());
+		}
+		result.append("]");
+		return result;
 	}
 
 	ParseResult Feed(char c) override
 	{
-		return ParseResult::PR_ERROR;
+		switch(status_)
+		{
+		case AI_STATUS::PARSING_LENGTH:
+			if(c != '\r')
+			{
+				if(std::isdigit(c) || (c == '-' && count_.size() == 0))
+				{
+					count_.push_back(c);
+				}
+				else
+				{
+					return ParseResult::PR_ERROR;
+				}
+			}
+			else
+			{
+				item_count_ = std::stoi(count_);
+				status_ = AI_STATUS::EXPECT_LF;
+			}
+			return ParseResult::PR_CONTINUE;
+			break;
+		case AI_STATUS::EXPECT_LF:
+			if(c != '\n')
+			{
+				return ParseResult::PR_ERROR;
+			}
+			status_ = AI_STATUS::PARSING_SUB_ITEM_HEADER;
+
+			if(item_count_ <= 0)
+			{
+				return ParseResult::PR_FINISHED;
+			}
+			return ParseResult::PR_CONTINUE;
+			break;
+		case AI_STATUS::PARSING_SUB_ITEM_HEADER:
+			current_item_ = AbstractReplyItem::CreateItem(c);
+			if(! current_item_)
+			{
+				return ParseResult::PR_ERROR;
+			}
+			items_.push_back(current_item_);
+			status_ = AI_STATUS::PARSEING_SUB_ITEM_CONTENT;
+			return ParseResult::PR_CONTINUE;
+			break;
+		case AI_STATUS::PARSEING_SUB_ITEM_CONTENT:
+		{
+			ParseResult pr = current_item_->Feed(c);
+			if(pr == ParseResult::PR_ERROR)
+			{
+				return ParseResult::PR_ERROR;
+			}
+			if(pr == ParseResult::PR_FINISHED)
+			{
+				if(static_cast<int>(items_.size()) >= item_count_)
+					return ParseResult::PR_FINISHED;
+				status_ = AI_STATUS::PARSING_SUB_ITEM_HEADER;
+			}
+			return ParseResult::PR_CONTINUE;
+			break;
+		}
+		default:
+			return ParseResult::PR_ERROR;
+			break;
+		}
 	}
 private:
+	int item_count_;
+	string count_;
+	AI_STATUS status_;
+	std::shared_ptr<AbstractReplyItem> current_item_;
 	vector<std::shared_ptr<AbstractReplyItem>> items_;
 };
 
@@ -99,14 +190,10 @@ protected:
 };
 
 // start with +
-class SimpleStringItem: public OneLineString
-{
-};
+class SimpleStringItem: public OneLineString {};
 
 // start with -
-class ErrString: public OneLineString
-{
-};
+class ErrString: public OneLineString {};
 
 // string with length, start with $
 class BulkString: public AbstractReplyItem
@@ -203,11 +290,30 @@ private:
 	int number_ = -1;
 };
 
+std::shared_ptr<AbstractReplyItem> AbstractReplyItem::CreateItem(char c)
+{
+	std::map<char, std::function<AbstractReplyItem*()>> factory_func = {
+			{'*', []() { return new ArrayItem; } },
+			{'+', []() { return new SimpleStringItem; } },
+			{'-', []() { return new ErrString; } },
+			{':', []() { return new NumberItem; } },
+			{'$', []() { return new BulkString; } },
+	};
+
+	auto it = factory_func.find(c);
+	if(it != factory_func.end())
+	{
+		return std::shared_ptr<AbstractReplyItem>(it->second());
+	}
+
+	return nullptr;
+}
+
 // one shot async client, exe one cmd, get the result, then destroy
 class OneShotClient: public std::enable_shared_from_this<OneShotClient>
 {
 public:
-	OneShotClient(asio::io_context& io, asio::ip::tcp::endpoint ep): io_(io), ep_(ep), socket_(io) {}
+	OneShotClient(asio::io_context& io, asio::ip::tcp::endpoint ep): ep_(ep), socket_(io) {}
 
 	void ExecuteCmd(const string& cmd)
 	{
@@ -239,13 +345,13 @@ private:
 			return;
 		}
 
-		// cout<<"got result: "<<string(recv_buff_, len)<<"\n";
+	    //cout<<"got result: "<<string(recv_buff_, len)<<"\n";
 
 		for(char* p = recv_buff_; p < recv_buff_ + len; ++p)
 		{
 			if(! parse_item_)
 			{
-				parse_item_ = CreateItem(*p);
+				parse_item_ = AbstractReplyItem::CreateItem(*p);
 				continue;
 			}
 
@@ -257,7 +363,7 @@ private:
 			}
 			else if(pr == ParseResult::PR_ERROR)
 			{
-				cout<<"parse error\n";
+				cout<<"parse error at "<<*p<<", pos="<<(p-recv_buff_)<<"\n";
 				return;
 			}
 		}
@@ -265,28 +371,8 @@ private:
 		// not finished, recv again
 		socket_.async_read_some(asio::buffer(recv_buff_), std::bind(&OneShotClient::ReceiveResponse, this, _1, _2));
 	}
-
-	// factory method
-	std::shared_ptr<AbstractReplyItem> CreateItem(char c)
-	{
-		std::map<char, std::function<AbstractReplyItem*()>> factory_func = {
-				{'*', []() { return new ArrayItem; } },
-				{'+', []() { return new SimpleStringItem; } },
-				{'-', []() { return new ErrString; } },
-				{':', []() { return new NumberItem; } },
-				{'$', []() { return new BulkString; } },
-		};
-
-		auto it = factory_func.find(c);
-		if(it != factory_func.end())
-		{
-			return std::shared_ptr<AbstractReplyItem>(it->second());
-		}
-
-		return nullptr;
-	}
 private:
-	asio::io_context& io_;
+//	asio::io_context& io_;
 	asio::ip::tcp::endpoint ep_; // server address
 	asio::ip::tcp::socket socket_;
 	string send_buff_;
@@ -300,7 +386,9 @@ int main()
 	asio::ip::tcp::endpoint ep(asio::ip::address::from_string("127.0.0.1"), 6379);
 
 	auto p = std::make_shared<OneShotClient>(io, ep);
-	p->ExecuteCmd("*3\r\n$3\r\nset\r\n$3\r\naaa\r\n$3\r\nbbb\r\n");
+	//p->ExecuteCmd("*3\r\n$3\r\nset\r\n$3\r\naaa\r\n$3\r\nbbb\r\n");
+	//p->ExecuteCmd("*2\r\n$3\r\nget\r\n$3\r\naaa\r\n");
+	p->ExecuteCmd("*2\r\n$4\r\nkeys\r\n$1\r\n*\r\n");
 
 	io.run();
 	return 0;

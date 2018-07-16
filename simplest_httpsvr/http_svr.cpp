@@ -26,7 +26,7 @@ public:
 				cout<<"recv err:"<<err.message()<<"\n";
 				return;
 			}
-			string first_line = request_.substr(0, request_.find("\r\n")); // should be like: GET / HTTP/1.1
+			string first_line = request_.substr(0, request_.find("\r\n")); // should be like: GET / HTTP/1.0
 			cout<<first_line<<"\n";
 			// process with request
 			// ...

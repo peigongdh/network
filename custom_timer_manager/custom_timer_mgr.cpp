@@ -11,7 +11,7 @@
 int main()
 {
 	asio::io_context io;
-	asio::steady_timer t(io, asio::chrono::microseconds(500));
+	asio::steady_timer t(io, asio::chrono::seconds(10));
 	t.async_wait([](const asio::error_code&) { std::cout<<"it's time.\n"; } );
 	io.run();
 	return 0;

@@ -8,7 +8,7 @@ set(BINARY_OUTPUT_DIR ${PROJECT_SOURCE_DIR}/bin)
 
 add_subdirectory(shadowsocks-asio)
 add_subdirectory(timer-performance)
-add_subdirectory(httpclient-https)
+#add_subdirectory(httpclient-https)
 add_subdirectory(redis-asio)
 add_subdirectory(fixed-size-package)
 add_subdirectory(io_context)

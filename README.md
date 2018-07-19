@@ -21,3 +21,5 @@ simple network tools and samples wrote when learning asynchronous asio.
 **io_context** example of io_context, shows how to use run/poll/dispatch/post
 
 **simplest_httpsvr** is trying to make a simplest http svr
+
+**custom_timer_manager** shows how to make a custom timer manager for asio

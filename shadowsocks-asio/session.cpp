@@ -180,7 +180,7 @@ void SSSession::ServerStart()
 					else if(local_buffer_[3] == 0x03) // 05 01 00 03 host_len host[host_len] port[2]
 					{
 						uint8_t host_len = local_buffer_[4];
-						if(static_cast<int>(len) != static_cast<int>(7 + host_len)) // warning of comparing
+						if(static_cast<int>(len) != static_cast<int>(7 + host_len)) // warning of comparing on gcc 4.8
 						{
 							std::cerr<<"connect with hostname length error, not "<<7+host_len<<", but "<<len<<"\n";
 							return;

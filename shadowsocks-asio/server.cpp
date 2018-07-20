@@ -35,7 +35,7 @@ void daemon()
     umask(0);
     chdir("/");
 
-    for(i=0;i<65535;i++)
+    for(int i=0;i<65535;i++)
     	close(i);
 }
 #endif

@@ -35,6 +35,7 @@ void MultiThreadRun()
 	asio::strand<asio::io_context::executor_type> str(io.get_executor()); // strand的用法，这里用来防止cout输出错乱
 
 	thread t1([&io, &str]() {
+		(void)str; // unused warning
 		//asio::executor_work_guard<asio::io_context::executor_type> wg
 		auto wg = asio::make_work_guard(io) ; // executor_work_guard可以防止io.run()在事件处理完以后退出
 		io.run(); // 从任何线程发起的post/dispatch的函数都在调用run/poll的线程中执行

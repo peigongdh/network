@@ -12,6 +12,8 @@
 #include <cstddef>
 #include <map>
 #include <iostream>
+#include <ctime>
+#include <chrono>
 #include "asio/detail/cstdint.hpp"
 #include "asio/detail/date_time_fwd.hpp"
 //#include "asio/detail/limits.hpp"
@@ -21,6 +23,7 @@
 #include "asio/error.hpp"
 
 //#include "asio/detail/push_options.hpp"
+
 
 namespace asio {
 namespace detail {
@@ -61,7 +64,7 @@ public:
 
 	timer_queue()
 	{
-		std::cout<<"======>custom timer constructed.\n";
+		std::cout<<"======>custom timer queue constructed.\n";
 	}
 
 	  // Whether there are no timers in the queue.
@@ -104,7 +107,7 @@ public:
 		do
 		{
 			auto it = timers_.begin();
-			if(!Time_Traits::less_than(now, it->first))
+			if(Time_Traits::less_than(now, it->first))
 			{
 				break;
 			}
@@ -144,7 +147,7 @@ public:
 			it->second->op_queue_.push(op);
 		}
 
-		std::cout<<"insert a timer: \n";
+		std::cout<<"insert a timer which will fire after "<<std::chrono::duration<double>(time - std::chrono::steady_clock::now()).count() <<" seconds\n";
 
 		return time == timers_.begin()->first;
 	}
@@ -175,7 +178,7 @@ public:
 	// Move operations from one timer to another, empty timer.
 	void move_timer(per_timer_data& target, per_timer_data& source)
 	{
-
+		//TODO: this method is for move constructor, just implement as needed
 	}
 private:
 	// Helper function to convert a duration into milliseconds.

@@ -8,8 +8,6 @@ simple network tools and samples wrote when learning asynchronous asio.
 
 **httpclient-https** is a simple httpclient, with https supported
 
-**httpclient-redirection** is a simple httpclient, with 302 redirections implemented
-
 **socks5-daemon** is a simple socks5 server implemention
 
 **shadowsocks-asio** a very simple tool, but it's complete and works fine. 

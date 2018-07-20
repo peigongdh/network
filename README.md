@@ -20,4 +20,6 @@ simple network tools and samples wrote when learning asynchronous asio.
 
 **simplest_httpsvr** is trying to make a simplest http svr
 
+**custom_errorcode** shows how to make custom error_code in asio
+
 **custom_timer_manager** shows how to make a custom timer manager for asio

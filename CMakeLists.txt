@@ -6,7 +6,7 @@ set(CMAKE_CXX_FLAGS "-Wall -std=c++11 -DASIO_STANDALONE -Werror")
 set(ASIO_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/asio/asio/include)
 set(BINARY_OUTPUT_DIR ${PROJECT_SOURCE_DIR}/bin)
 
-add_subdirectory(shadowsocks-asio)
+add_subdirectory(peacesocks)
 add_subdirectory(timer-performance)
 #add_subdirectory(httpclient-https)
 add_subdirectory(redis-asio)

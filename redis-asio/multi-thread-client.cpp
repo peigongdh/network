@@ -10,7 +10,7 @@ client.cpp
 #include <thread>
 #include <deque>
 #include <asio.hpp>
-#include "redis-protocol.h"
+#include "input_composer.h"
 
 using namespace std;
 using namespace asio;
@@ -121,7 +121,7 @@ int main()
 	std::string line;
 	while(std::getline(std::cin, line))
 	{
-		std::string bulk_string = Bulk::ComposeInputToBulk(line);
+		std::string bulk_string = InputComposer::ComposeInputToBulk(line);
 		client->Send(bulk_string);
 	}
 

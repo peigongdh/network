@@ -12,8 +12,9 @@ redis-protocol.h
 // redis protocol,
 // see http://redisdoc.com/topic/protocol.html
 
+// compose inputs to redis arrays, like this:
 // *param_count\r\n$param_len1\r\nparam1\r\n$param_len2\r\n....
-class Bulk
+class InputComposer
 {
 public:
 	void Clear()

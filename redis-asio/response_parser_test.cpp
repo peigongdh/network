@@ -111,4 +111,32 @@ TEST_CASE("test resp array")
 		REQUIRE(sp.pr_ == ParseResult::PR_FINISHED);
 		REQUIRE(sp.item_->ToString() == "[1, 2, 3, 4, foobar]");
 	}
+
+	{ // arrays of arrays
+		string s = "*2\r\n"
+				"*3\r\n"
+				":1\r\n"
+				":2\r\n"
+				":3\r\n"
+				"*2\r\n"
+				"+Foo\r\n"
+				"-Bar\r\n";
+		StringParser sp;
+		sp.ParseString(s);
+		REQUIRE(sp.pr_ == ParseResult::PR_FINISHED);
+		REQUIRE(sp.item_->ToString() == "[[1, 2, 3], [Foo, Bar]]");
+	}
+
+	{ // null element in arrays
+		string s = "*3\r\n"
+				"$3\r\n"
+				"foo\r\n"
+				"$-1\r\n"
+				"$3\r\n"
+				"bar\r\n";
+		StringParser sp;
+		sp.ParseString(s);
+		REQUIRE(sp.pr_ == ParseResult::PR_FINISHED);
+		REQUIRE(sp.item_->ToString() == "[foo, (null), bar]");
+	}
 }

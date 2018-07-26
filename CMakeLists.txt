@@ -9,6 +9,7 @@ set(BINARY_OUTPUT_DIR ${PROJECT_SOURCE_DIR}/bin)
 
 add_subdirectory(peacesocks)
 add_subdirectory(timer-performance)
+add_subdirectory(httpclient)
 #add_subdirectory(httpclient-https)
 add_subdirectory(redis-asio)
 add_subdirectory(fixed-size-package)

@@ -7,7 +7,7 @@ http_client_test.cpp
 #include <string>
 #include <memory>
 
-#include "AsyncHttpClient1.h"
+#include "AsyncHttpClient.h"
 
 using namespace std;
 
@@ -20,7 +20,6 @@ int main()
 {
 	std::map<string, std::shared_ptr<AsyncHttpClient>> urls = {
 			{"http://www.qq.com", nullptr},
-			{"http://www.guanggoo.com/t/32230#reply87", nullptr},
 			{"http://en.cppreference.com/w/cpp/regex/match_results", nullptr},
 			};
     asio::io_context io_context;

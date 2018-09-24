@@ -17,7 +17,7 @@
 class SSSession : public std::enable_shared_from_this<SSSession>
 {
 	friend class Socks5Server;
-	static const int BUFFER_SIZE = 1024;
+	static const int BUFFER_SIZE = 4096;
 public:
 	SSSession(asio::io_context& ioc):local_socket_(ioc), remote_socket_(ioc), resolver_(ioc) {}
 	void LocalStart(); // only called in the "local" module

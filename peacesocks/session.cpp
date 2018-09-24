@@ -6,11 +6,7 @@
 #include "encrypt.h"
 #include "config.h"
 
-#define LogErr(msg) do { \
-		std::cerr<<"[<<local_fd = "<< local_socket_.native_handle() <<"], line="<<__LINE__<<", "<<msg<<"\n"; \
-		}while(0);
-
-#define CLOSE_EC else { Close(ec); }
+#define log(fmt, ...) do { fprintf(stderr, "%s:%d:%s(): " fmt, __FILE__, __LINE__, __func__, __VA_ARGS__); } while (0)
 
 #define ERROR_RETURN  if(ec) { Close(ec); return; }
 
@@ -50,7 +46,7 @@ void SSSession::LocalStart()
 		//check the value
 		if(len < 3 || local_buffer_[0] != 0x05 || local_buffer_[1] != 0x01 || local_buffer_[2] != 0x00)
 		{
-			LogErr("recv 05 01 00 err");
+			log("fd=%d, %s", local_socket_.native_handle(), "recv 05 01 00 err");
 			return;
 		}
 
@@ -67,14 +63,14 @@ void SSSession::LocalStart()
 					ERROR_RETURN
 					if(len < 2)
 					{
-						LogErr("receive 05 00 from remote err");
+						log("fd=%d, %s", local_socket_.native_handle(), "receive 05 00 from remote err");
 						return;
 					}
 
 					Cypher::Instance().Decrypt(remote_buffer_, 2);
 					if(remote_buffer_[0] != 0x05 || remote_buffer_[1] != 0x00)
 					{
-						LogErr("receive from remote, not 05 00");
+						log("fd=%d, %s", local_socket_.native_handle(), "receive from remote, not 05 00");
 						return;
 					}
 
@@ -87,7 +83,7 @@ void SSSession::LocalStart()
 							// decrypt and send to server
 							if(len < 5)
 							{
-								LogErr("receive 05 01 00 01/03 ... from client err");
+								log("fd=%d, %s", local_socket_.native_handle(), "receive 05 01 00 01/03 ... from client err");
 								return;
 							}
 
@@ -124,7 +120,7 @@ void SSSession::ServerStart()
 		// expeted to be encrypted 05 01 00
 		if(len < 3)
 		{
-			LogErr("recv 05 01 00 length err");
+			log("fd=%d, %s", local_socket_.native_handle(), "recv 05 01 00 length err");
 			local_socket_.close();
 			return;
 		}
@@ -132,7 +128,7 @@ void SSSession::ServerStart()
 		Cypher::Instance().Decrypt(local_buffer_, len);
 		if(local_buffer_[0] != 0x05 || local_buffer_[1] != 0x01 || local_buffer_[2] != 0x00)
 		{
-			LogErr("05 01 00 content error");
+			log("fd=%d, %s", local_socket_.native_handle(), "05 01 00 content error");
 			local_socket_.close();
 			return;
 		}
@@ -146,7 +142,7 @@ void SSSession::ServerStart()
 				ERROR_RETURN
 				if(len < 5)
 				{
-					LogErr("recv encryted 05 01 00 01 ... length too short");
+					log("fd=%d, %s", local_socket_.native_handle(), "recv encryted 05 01 00 01 ... length too short");
 					local_socket_.close();
 					return;
 				}
@@ -155,7 +151,7 @@ void SSSession::ServerStart()
 
 				if(local_buffer_[1] != 0x01)// now only 0x01 is supported
 				{
-					LogErr("unsupported cmd");
+					log("fd=%d, %s", local_socket_.native_handle(), "unsupported cmd");
 					local_socket_.close();
 					return;
 				}
@@ -166,7 +162,7 @@ void SSSession::ServerStart()
 					{
 						if(len != 10)
 						{
-							std::cerr<<"connect with ip length error, not 10, but "<<len<<"\n";
+							log("fd=%d, connect with ip length error, not 10, but %zu", local_socket_.native_handle(), len);
 							local_socket_.close();
 							return;
 						}
@@ -182,7 +178,7 @@ void SSSession::ServerStart()
 						uint8_t host_len = local_buffer_[4];
 						if(static_cast<int>(len) != static_cast<int>(7 + host_len)) // warning of comparing on gcc 4.8
 						{
-							std::cerr<<"connect with hostname length error, not "<<7+host_len<<", but "<<len<<"\n";
+							log("fd=%d, connect with hostname length error, not %d, but %zu", local_socket_.native_handle(), 7+host_len, len);
 							return;
 						}
 
@@ -197,13 +193,20 @@ void SSSession::ServerStart()
 					resolver_.async_resolve(q, [self, this](const asio::error_code& ec, asio::ip::tcp::resolver::results_type results) {
 						ERROR_RETURN
 						// connect to dest
-						remote_socket_.async_connect(*results.begin(), [self, this](const asio::error_code& ec) {
+						const std::string host_name = (*results.begin()).host_name();
+						remote_socket_.async_connect(*results.begin(), [self, this, host_name](const asio::error_code& ec) {
 							ERROR_RETURN
 							// send encrypted 05 00 00 ... to local
-							char resp[] = {0x05, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+							//char resp[] = {0x05, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+							char resp[] = {0x05, 0x00, 0x00, 0x03};
 							memcpy(local_buffer_, resp, sizeof(resp));
-							Cypher::Instance().Encrypt(local_buffer_, sizeof(resp));
-							asio::async_write(local_socket_, asio::buffer(local_buffer_, sizeof(resp)), [self, this](const asio::error_code& ec, size_t len) {
+							local_buffer_[4] = host_name.length();
+							memcpy(local_buffer_+ 5, &host_name[0], host_name.length());
+							local_buffer_[4 + host_name.length() + 1] = 0x00;
+							local_buffer_[4 + host_name.length() + 2] = 0x00;
+							const size_t send_len = 5 + host_name.length() + 2;
+							Cypher::Instance().Encrypt(local_buffer_, send_len);
+							asio::async_write(local_socket_, asio::buffer(local_buffer_, send_len), [self, this](const asio::error_code& ec, size_t len) {
 								ERROR_RETURN
 								// socks5 handshake over, now begin to transfer data
 								RecvEncryptSend(remote_socket_, local_socket_, remote_buffer_);
@@ -219,10 +222,6 @@ void SSSession::ServerStart()
 
 void SSSession::Close(const asio::error_code& ec)
 {
-//	if(ec != asio::error::eof)
-//	{
-//		std::cerr<<"err: "<<ec.message()<<"\n";
-//	}
 	local_socket_.close();
 	remote_socket_.close();
 }
@@ -240,7 +239,7 @@ void Socks5Server::LocalStart()
 		}
 		else
 		{
-			std::cerr<<"accept error, msg:"<<err.message()<<"\n";
+			log("accept error, msg: %s", err.message().c_str());
 		}
 	});
 }
@@ -258,7 +257,7 @@ void Socks5Server::ServerStart()
 		}
 		else
 		{
-			std::cerr<<"accept error, msg:"<<err.message()<<"\n";
+			log("accept error, msg: %s", err.message().c_str());
 		}
 	});
 }

@@ -86,32 +86,31 @@ public:
 		auto self = shared_from_this();
 		asio::post(io_context_, [self, this, line]() {
 			//std::cout<<"process line thread:"<<std::this_thread::get_id()<<"\n";
-			bool sending = ! requests_.empty();
 			requests_.push_back(line);
-			if(! sending)
-			{
-				send_buffer_ = requests_.front();
-				requests_.pop_front();
-				asio::async_write(socket_, asio::buffer(&send_buffer_[0], send_buffer_.length()),
-						std::bind(&RedisClient::SendQueue, this, std::placeholders::_1));
-			}
+			SendQueue();
 		});
 	}
 
-	void SendQueue(const asio::error_code& err)
+	void SendQueue()
 	{
-		if(err)
-		{
-			socket_.close();
-			return;
-		}
-
-		while(! requests_.empty())
+		//std::cout<<"sendqueue thread:"<<std::this_thread::get_id()<<"\n";
+		auto self = shared_from_this();
+		if(! requests_.empty())
 		{
 			send_buffer_ = requests_.front();
 			requests_.pop_front();
 			asio::async_write(socket_, asio::buffer(&send_buffer_[0], send_buffer_.length()),
-					std::bind(&RedisClient::SendQueue, this, std::placeholders::_1));
+					[this, self](const asio::error_code& err, std::size_t bytes_transferred){
+				if(err)
+				{
+					socket_.close();
+					return;
+				}
+
+				asio::post(io_context_, [self, this](){
+					SendQueue();
+				});
+			});
 		}
 	}
 private:

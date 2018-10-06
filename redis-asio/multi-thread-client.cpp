@@ -35,14 +35,11 @@ public:
 				return;
 			}
 
-			std::cout<<"connected, is_open: "<<socket_.is_open()<<"\n";
+			//std::cout<<"connected, is_open: "<<socket_.is_open()<<"\n";
 
 			// read data from server
 			auto self = shared_from_this();
-			//TODO: should use asio::async_receive
 			socket_.async_receive(asio::buffer(recv_buffer_), std::bind(&RedisClient::RecvFromServer, this, std::placeholders::_1, std::placeholders::_2));
-			//asio::async_read_until(socket_, recv_stream_, "\r\n",
-			//		std::bind(&RedisClient::RecvFromServer, this, std::placeholders::_1, std::placeholders::_2));
 		});
 	}
 
@@ -66,28 +63,22 @@ public:
 			ParseResult pr = parse_item_->Feed(*p);
 			if(pr == ParseResult::PR_FINISHED)
 			{
-				cout<<"get parse result: "<<parse_item_->ToString()<<"\n";
+				cout<<parse_item_->ToString()<<"\n";
+				cout<<server_endpoint_.address().to_string()<<":"<<server_endpoint_.port()<<"> "<<std::flush;
 				parse_item_.reset();
 			}
 			else if(pr == ParseResult::PR_ERROR)
 			{
 				cout<<"parse error at "<<*p<<", pos="<<(p-recv_buffer_)<<"\n";
+				cout<<server_endpoint_.address().to_string()<<":"<<server_endpoint_.port()<<"> "<<std::flush;
 				parse_item_.reset();
 			}
 		}
 
+		// continue receiving data
 		socket_.async_receive(asio::buffer(recv_buffer_), std::bind(&RedisClient::RecvFromServer,
 				this, std::placeholders::_1, std::placeholders::_2));
-
-
-//		string line;
-//		std::istream istr(&recv_stream_);
-//		istr >> line;
-//		std::cout<<line<<"\n";
-//		// read data from server
-//		asio::async_read_until(socket_, recv_stream_, "\r\n",
-//							std::bind(&RedisClient::RecvFromServer, this, std::placeholders::_1, std::placeholders::_2));
-	}
+}
 
 	void Send(const string& line)
 	{
@@ -131,7 +122,6 @@ private:
 	std::deque<string> requests_;
 	char recv_buffer_[1024];
 	std::shared_ptr<AbstractReplyItem> parse_item_;
-	//asio::streambuf recv_stream_;
 };
 
 int main()
@@ -146,6 +136,7 @@ int main()
 
 	//std::cout<<"main thread:"<<std::this_thread::get_id()<<"\n";
 
+	cout<<server_endpoint.address().to_string()<<":"<<server_endpoint.port()<<"> "<<std::flush;
 	std::string line;
 	while(std::getline(std::cin, line))
 	{

@@ -95,7 +95,14 @@ protected:
 class SimpleStringItem: public OneLineString {};
 
 // start with -
-class ErrString: public OneLineString {};
+class ErrString: public OneLineString
+{
+public:
+	std::string ToString() override
+	{
+		return std::string("(error) ") + content_;
+	}
+};
 
 // string with length, start with $
 class BulkString: public AbstractReplyItem
@@ -110,9 +117,9 @@ public:
 	std::string ToString() override
 	{
 		if(length_ == -1)
-			return "(null)";
+			return "(nil)";
 
-		return content_;
+		return std::string("\"")+content_+std::string("\"");
 	}
 
 	ParseResult Feed(char c) override;
@@ -127,6 +134,11 @@ private:
 class NumberItem: public OneLineString
 {
 public:
+	std::string ToString() override
+	{
+		return std::string("(integer) ")+std::to_string(number_);
+	}
+
 	ParseResult Feed(char c) override;
 private:
 	int number_ = -1;

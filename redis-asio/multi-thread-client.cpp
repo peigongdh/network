@@ -11,6 +11,7 @@ client.cpp
 #include <deque>
 #include <asio.hpp>
 #include "input_composer.h"
+#include "response_parser.h"
 
 using namespace std;
 using namespace asio;
@@ -37,11 +38,11 @@ public:
 			std::cout<<"connected, is_open: "<<socket_.is_open()<<"\n";
 
 			// read data from server
-			// auto self = shared_from_this();
+			auto self = shared_from_this();
 			//TODO: should use asio::async_receive
-			//socket_.async_receive(asio::buffer(recv_buffer_), std::bind(&RedisClient::RecvFromServer, this, std::placeholders::_1, std::placeholders::_2));
-			asio::async_read_until(socket_, recv_stream_, "\r\n",
-					std::bind(&RedisClient::RecvFromServer, this, std::placeholders::_1, std::placeholders::_2));
+			socket_.async_receive(asio::buffer(recv_buffer_), std::bind(&RedisClient::RecvFromServer, this, std::placeholders::_1, std::placeholders::_2));
+			//asio::async_read_until(socket_, recv_stream_, "\r\n",
+			//		std::bind(&RedisClient::RecvFromServer, this, std::placeholders::_1, std::placeholders::_2));
 		});
 	}
 
@@ -49,18 +50,43 @@ public:
 	{
 		if(err)
 		{
-			std::cout<<"recv error\n";
+			std::cout<<"recv error: "<<err.message()<<"\n";
 			socket_.close();
 			return;
 		}
 
-		string line;
-		std::istream istr(&recv_stream_);
-		istr >> line;
-		std::cout<<line<<"\n";
-		// read data from server
-		asio::async_read_until(socket_, recv_stream_, "\r\n",
-							std::bind(&RedisClient::RecvFromServer, this, std::placeholders::_1, std::placeholders::_2));
+		for(char* p = recv_buffer_; p < recv_buffer_ + len; ++p)
+		{
+			if(! parse_item_)
+			{
+				parse_item_ = AbstractReplyItem::CreateItem(*p);
+				continue;
+			}
+
+			ParseResult pr = parse_item_->Feed(*p);
+			if(pr == ParseResult::PR_FINISHED)
+			{
+				cout<<"get parse result: "<<parse_item_->ToString()<<"\n";
+				parse_item_.reset();
+			}
+			else if(pr == ParseResult::PR_ERROR)
+			{
+				cout<<"parse error at "<<*p<<", pos="<<(p-recv_buffer_)<<"\n";
+				parse_item_.reset();
+			}
+		}
+
+		socket_.async_receive(asio::buffer(recv_buffer_), std::bind(&RedisClient::RecvFromServer,
+				this, std::placeholders::_1, std::placeholders::_2));
+
+
+//		string line;
+//		std::istream istr(&recv_stream_);
+//		istr >> line;
+//		std::cout<<line<<"\n";
+//		// read data from server
+//		asio::async_read_until(socket_, recv_stream_, "\r\n",
+//							std::bind(&RedisClient::RecvFromServer, this, std::placeholders::_1, std::placeholders::_2));
 	}
 
 	void Send(const string& line)
@@ -103,7 +129,9 @@ private:
 	asio::ip::tcp::socket socket_;
 	asio::ip::tcp::endpoint server_endpoint_;
 	std::deque<string> requests_;
-	asio::streambuf recv_stream_;
+	char recv_buffer_[1024];
+	std::shared_ptr<AbstractReplyItem> parse_item_;
+	//asio::streambuf recv_stream_;
 };
 
 int main()

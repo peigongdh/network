@@ -1,6 +1,6 @@
 project(redis-assio)
 
-add_executable(mt-redis-cli multi-thread-client.cpp)
+add_executable(mt-redis-cli multi-thread-client.cpp response_parser.cpp)
 add_executable(general-redis-cli general-client.cpp response_parser.cpp)
 add_executable(protocol_parser_test response_parser.cpp response_parser_test.cpp)
 

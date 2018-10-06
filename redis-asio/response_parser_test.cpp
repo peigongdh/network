@@ -54,7 +54,7 @@ TEST_CASE("test resp error")
 	StringParser sp;
 	sp.ParseString(s);
 	REQUIRE(sp.pr_ == ParseResult::PR_FINISHED);
-	REQUIRE(sp.item_->ToString() == "Error message");
+	REQUIRE(sp.item_->ToString() == "(error) Error message");
 }
 
 // test resp integer
@@ -64,7 +64,7 @@ TEST_CASE("test resp integer")
 	StringParser sp;
 	sp.ParseString(s);
 	REQUIRE(sp.pr_ == ParseResult::PR_FINISHED);
-	REQUIRE(sp.item_->ToString() == "-1000");
+	REQUIRE(sp.item_->ToString() == "(integer) -1000");
 }
 
 // resp bulk strings
@@ -75,7 +75,7 @@ TEST_CASE("test bulk string")
 		StringParser sp;
 		sp.ParseString(s);
 		REQUIRE(sp.pr_ == ParseResult::PR_FINISHED);
-		REQUIRE(sp.item_->ToString() == "foobar");
+		REQUIRE(sp.item_->ToString() == "\"foobar\"");
 	}
 
 	{
@@ -83,7 +83,7 @@ TEST_CASE("test bulk string")
 		StringParser sp;
 		sp.ParseString(s);
 		REQUIRE(sp.pr_ == ParseResult::PR_FINISHED);
-		REQUIRE(sp.item_->ToString() == "(null)");
+		REQUIRE(sp.item_->ToString() == "(nil)");
 	}
 }
 
@@ -109,7 +109,7 @@ TEST_CASE("test resp array")
 		StringParser sp;
 		sp.ParseString(s);
 		REQUIRE(sp.pr_ == ParseResult::PR_FINISHED);
-		REQUIRE(sp.item_->ToString() == "[1, 2, 3, 4, foobar]");
+		REQUIRE(sp.item_->ToString() == "[(integer) 1, (integer) 2, (integer) 3, (integer) 4, \"foobar\"]");
 	}
 
 	{ // arrays of arrays
@@ -124,7 +124,7 @@ TEST_CASE("test resp array")
 		StringParser sp;
 		sp.ParseString(s);
 		REQUIRE(sp.pr_ == ParseResult::PR_FINISHED);
-		REQUIRE(sp.item_->ToString() == "[[1, 2, 3], [Foo, Bar]]");
+		REQUIRE(sp.item_->ToString() == "[[(integer) 1, (integer) 2, (integer) 3], [Foo, (error) Bar]]");
 	}
 
 	{ // null element in arrays
@@ -137,6 +137,6 @@ TEST_CASE("test resp array")
 		StringParser sp;
 		sp.ParseString(s);
 		REQUIRE(sp.pr_ == ParseResult::PR_FINISHED);
-		REQUIRE(sp.item_->ToString() == "[foo, (null), bar]");
+		REQUIRE(sp.item_->ToString() == "[\"foo\", (nil), \"bar\"]");
 	}
 }

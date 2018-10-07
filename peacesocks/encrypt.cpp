@@ -12,7 +12,7 @@ Cypher::Cypher()
 	uint8_t init = 0;
 	std::generate_n(data, MAX_UCHAR, [&init]() { return init++; } ); // data[i] = i, 0 <= i <= 255
 
-	const size_t shift_steps = SSConfig::Instance().shift_steps;
+	const size_t shift_steps = SSConfig::Instance().ShiftSteps();
 	std::rotate(data, data + shift_steps, data + sizeof(data));
 
 	for(int i = 0; i < MAX_UCHAR; ++i)

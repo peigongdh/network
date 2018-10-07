@@ -22,6 +22,8 @@ public:
 	short LocalPort() { return local_port; }
 
 	short ServerPort() { return server_port; }
+
+	size_t ShiftSteps() { return shift_steps; }
 public:
 	static SSConfig& Instance()
 	{

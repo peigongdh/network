@@ -4,6 +4,7 @@
 #include <iostream>
 #include <algorithm>
 #include "encrypt.h"
+#include "config.h"
 
 Cypher::Cypher()
 {
@@ -11,7 +12,7 @@ Cypher::Cypher()
 	uint8_t init = 0;
 	std::generate_n(data, MAX_UCHAR, [&init]() { return init++; } ); // data[i] = i, 0 <= i <= 255
 
-	const size_t shift_steps = 20; // 20 is the magic number for encryption, which should be read from config file
+	const size_t shift_steps = SSConfig::Instance().shift_steps;
 	std::rotate(data, data + shift_steps, data + sizeof(data));
 
 	for(int i = 0; i < MAX_UCHAR; ++i)

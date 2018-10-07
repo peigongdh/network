@@ -71,8 +71,9 @@ bool SSConfig::ReadConfig(std::string file_name)
 	server_ip = values["server_ip"];
 	server_port = std::stoi(values["server_port"]);
 	local_port = std::stoi(values["local_port"]);
+	shift_steps = std::stoi(values["shift_steps"]);
 
-	std::cout<<"init, server_ip="<<server_ip<<", server_port="<<server_port<<", local_port="<<local_port<<"\n";
+	std::cout<<"init, server_ip="<<server_ip<<", server_port="<<server_port<<", local_port="<<local_port<<", shift_steps="<<shift_steps<<"\n";
 	server_endpoint = asio::ip::tcp::endpoint(asio::ip::address::from_string(server_ip), server_port);
 
 	return true;

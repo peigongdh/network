@@ -38,6 +38,7 @@ private:
 	std::string server_ip;
 	short server_port;
 	short local_port; // local server is 127.0.0.1
+	size_t shift_steps; // for crypting
 	asio::ip::tcp::endpoint server_endpoint; // ip::tcp::endpoint(ip::address::from_string(...), ...)
 };
 

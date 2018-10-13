@@ -1,7 +1,7 @@
 project(network)
 cmake_minimum_required(VERSION 2.8)
 
-set(CMAKE_CXX_FLAGS "-d -O2 -Wall -std=c++11 -DASIO_STANDALONE -Werror")
+set(CMAKE_CXX_FLAGS "-d -Wall -std=c++11 -DASIO_STANDALONE -Werror")
 
 set(ASIO_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/asio/asio/include)
 set(CATCH_SINGLE_INCLUDE ${PROJECT_SOURCE_DIR}/3rdparty/unit_test) # for unit test

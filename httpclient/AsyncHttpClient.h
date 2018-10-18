@@ -11,6 +11,7 @@ AsyncHttpClient.h
 #include <vector>
 #include <iostream>
 #include <memory>
+#include <utility>
 #include <asio.hpp>
 
 using std::vector;
@@ -32,7 +33,8 @@ class AsyncHttpClient : public std::enable_shared_from_this<AsyncHttpClient> {
     };
 public:
     AsyncHttpClient(asio::io_context &io_context, string url) : status_(INIT), io_context_(io_context),
-                                                                resolver_(io_context), socket_(io_context), url_(url) {
+                                                                resolver_(io_context), socket_(io_context), url_(
+                    std::move(url)) {
     }
 
 public:

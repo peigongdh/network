@@ -9,15 +9,14 @@ custom-error-code.cpp
 
 using namespace std;
 
-int main()
-{
-	static_assert(std::is_same<asio::error_category, std::error_category>::value, "not same");
-	asio::error_code ec;
-	ec = error_1;
+int main() {
+    static_assert(std::is_same<asio::error_category, std::error_category>::value, "not same");
+    asio::error_code ec;
+    ec = error_1;
 
-	std::cout<<ec.message()<<"\n";
+    std::cout << ec.message() << "\n";
 
-	return 0;
+    return 0;
 }
 
 

@@ -38,7 +38,7 @@ public:
 
     virtual ParseResult Feed(char c) = 0;
 
-    virtual ~AbstractReplyItem() {}
+    virtual ~AbstractReplyItem() = default;
 
     // factory method
     static std::shared_ptr<AbstractReplyItem> CreateItem(char c);
@@ -53,7 +53,7 @@ class ArrayItem : public AbstractReplyItem {
         PARSING_SUB_ITEM_CONTENT
     };
 public:
-    ArrayItem() : AbstractReplyItem(), status_(AI_STATUS::PARSING_LENGTH) {}
+    ArrayItem() : AbstractReplyItem(), status_(AI_STATUS::PARSING_LENGTH), item_count_(0) {}
 
     std::string ToString() override {
         // item_count_ == -1 is not considered here

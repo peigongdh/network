@@ -30,7 +30,7 @@ ParseResult ArrayItem::Feed(char c) {
     switch (status_) {
         case AI_STATUS::PARSING_LENGTH:
             if (c != '\r') {
-                if (std::isdigit(c) || (c == '-' && count_.size() == 0)) {
+                if (std::isdigit(c) || (c == '-' && count_.empty())) {
                     count_.push_back(c);
                 } else {
                     return ParseResult::PR_ERROR;
@@ -40,7 +40,6 @@ ParseResult ArrayItem::Feed(char c) {
                 status_ = AI_STATUS::EXPECT_LF;
             }
             return ParseResult::PR_CONTINUE;
-            break;
         case AI_STATUS::EXPECT_LF:
             if (c != '\n') {
                 return ParseResult::PR_ERROR;
@@ -51,7 +50,6 @@ ParseResult ArrayItem::Feed(char c) {
                 return ParseResult::PR_FINISHED;
             }
             return ParseResult::PR_CONTINUE;
-            break;
         case AI_STATUS::PARSING_SUB_ITEM_HEADER:
             current_item_ = AbstractReplyItem::CreateItem(c);
             if (!current_item_) {
@@ -60,7 +58,6 @@ ParseResult ArrayItem::Feed(char c) {
             items_.push_back(current_item_);
             status_ = AI_STATUS::PARSING_SUB_ITEM_CONTENT;
             return ParseResult::PR_CONTINUE;
-            break;
         case AI_STATUS::PARSING_SUB_ITEM_CONTENT: {
             ParseResult pr = current_item_->Feed(c);
             if (pr == ParseResult::PR_ERROR) {
@@ -72,11 +69,9 @@ ParseResult ArrayItem::Feed(char c) {
                 status_ = AI_STATUS::PARSING_SUB_ITEM_HEADER;
             }
             return ParseResult::PR_CONTINUE;
-            break;
         }
         default:
             return ParseResult::PR_ERROR;
-            break;
     }
 }
 
@@ -89,17 +84,16 @@ ParseResult OneLineString::Feed(char c) {
                 content_.push_back(c);
             }
             return ParseResult::PR_CONTINUE;
-            break;
         case OLS_STATUS::EXPECT_LF:
             if (c == '\n') {
                 return ParseResult::PR_FINISHED;
             } else {
                 return ParseResult::PR_ERROR;
             }
-            break;
     }
 
-    return ParseResult::PR_ERROR; // impossible
+    // impossible
+    return ParseResult::PR_ERROR;
 }
 
 ParseResult BulkString::Feed(char c) {

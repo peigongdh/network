@@ -58,10 +58,10 @@ ParseResult ArrayItem::Feed(char c) {
                 return ParseResult::PR_ERROR;
             }
             items_.push_back(current_item_);
-            status_ = AI_STATUS::PARSEING_SUB_ITEM_CONTENT;
+            status_ = AI_STATUS::PARSING_SUB_ITEM_CONTENT;
             return ParseResult::PR_CONTINUE;
             break;
-        case AI_STATUS::PARSEING_SUB_ITEM_CONTENT: {
+        case AI_STATUS::PARSING_SUB_ITEM_CONTENT: {
             ParseResult pr = current_item_->Feed(c);
             if (pr == ParseResult::PR_ERROR) {
                 return ParseResult::PR_ERROR;

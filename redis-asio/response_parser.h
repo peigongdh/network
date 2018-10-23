@@ -50,7 +50,7 @@ class ArrayItem : public AbstractReplyItem {
         PARSING_LENGTH,
         EXPECT_LF, // parsing length, got \r, expect \n
         PARSING_SUB_ITEM_HEADER, // expect $ + - :
-        PARSEING_SUB_ITEM_CONTENT
+        PARSING_SUB_ITEM_CONTENT
     };
 public:
     ArrayItem() : AbstractReplyItem(), status_(AI_STATUS::PARSING_LENGTH) {}
